@@ -1,387 +1,233 @@
-## 📘 项目介绍
+# Auto Videos · 智能剪辑流水线
 
-```sh
-FastapiAdmin
-├─ backend               # 后端工程 (FastAPI + Python)
-├─ frontend              # Web前端工程 (Vue3 + Element Plus)
-├─ devops                # 部署配置
-├─ docker-compose.yaml   # Docker编排文件
-├─ deploy.sh             # 一键部署脚本
-├─ LICENSE               # 开源协议
-|─ README.en.md          # 英文文档
-└─ README.md             # 中文文档
+> 输入一条口播视频，自动输出一条成片和一张 AI 封面。
+
+基于 FastAPI + Vue3 的视频自动化剪辑系统。它把「语音清理 → 创意规划 → 云端渲染 → 封面生成」串成一条可断点续跑的流水线，重活全部交给云端 API，本地只做预处理和收尾。
+
+**这是一条 workflow，不是 agent。** 每一步做什么、调用什么、花多少钱都是确定的，没有自主决策循环 —— 换句话说，它的输出可预期、成本可预算、失败可续跑。
+
+---
+
+## 目录
+
+- [它做什么](#它做什么)
+- [八阶段流水线](#八阶段流水线)
+- [成本](#成本)
+- [运行前准备](#运行前准备)
+- [快速开始](#快速开始)
+- [目录结构](#目录结构)
+- [技术栈](#技术栈)
+- [二次开发](#二次开发)
+
+---
+
+## 它做什么
+
+**输入**：一条口播视频（任意比例，含人声）
+
+**输出**：
+
+- 一条竖屏 9:16 成片（含字幕、贴纸、动画、BGM、片尾）
+- 一张 AI 生成的封面
+- 一份可回看的质检记录
+
+中间做了这些事：
+
+1. 规整成 9:16 并上传对象存储
+2. 语音转写拿到**词级时间戳**，据此删掉口水词、重复句、过长停顿
+3. 用 LLM 规划贴纸 / 动画 / BGM 的落点
+4. 把时间线提交给云端剪辑服务渲染
+5. 并行生成封面（LLM 写文案 + 文生图）
+6. 封面盖到首帧，回传存储，落库
+
+**贴纸与配色的选择是确定性的**：由任务 seed 经 sha1 派生，同一个任务重跑得到同一套结果，方便复现和排查。
+
+## 八阶段流水线
+
+```mermaid
+flowchart TD
+    A["1 素材预处理<br/>转 9:16 + 上传 OSS<br/>ffmpeg 本地 · ¥0 · 20-57s"]
+    B["2 语音转写与口语清理<br/>删口水词 / 重复 / 长停顿<br/>百炼 ASR 词级时间戳 · ¥0.013-0.027 · 69-149s"]
+    C["3 媒资登记与选曲<br/>登记媒资 + seed 选 BGM<br/>阿里公共素材库 · ¥0 · 2-8s"]
+    D["4 创意规划<br/>豆包出贴纸 / 动画事件<br/>豆包 LLM ×2 · ¥0.03-0.05 · 99-209s"]
+    E["5 云端渲染<br/>时间线 → 阿里 IMS 剪辑<br/>¥0.06/分钟 · 79-126s"]
+    F["6 片尾拼接（可选）<br/>第二次 IMS 剪辑 job<br/>¥0.06-0.12 · 34-55s"]
+    G["7 AI 封面（与 5/6 并行）<br/>文案策划 + 文生图<br/>豆包 + 生图 · ¥0.05 · 131-163s"]
+    H["8 成片质检与入库<br/>封面盖首帧 → 回传 → 建 review 资产<br/>ffmpeg + MinIO · ¥0 · 18-44s"]
+
+    A --> B --> C --> D --> E --> F --> H
+    E -.->|并行| G
+    F -.->|并行| G
+    G --> H
 ```
 
-## 🛠️ 技术栈概览
+主链（1→2→3→4→5→6→8）实测 **6.5–10.6 分钟**。封面在第 5 阶段启动时并行跑，不占主链。
 
-| 类型           | 技术选型                                   | 描述                                           |
-| -------------- | ------------------------------------------ | ---------------------------------------------- |
-| **后端框架**   | FastAPI / Uvicorn / Pydantic 2.0 / Alembic | 现代、高性能的异步框架，强制类型约束，数据迁移 |
-| **ORM**        | SQLAlchemy 2.0                             | 强大的 ORM 库                                  |
-| **定时任务**   | APScheduler                                | 轻松实现定时任务                               |
-| **权限认证**   | PyJWT                                      | 实现 JWT 认证                                  |
-| **前端框架**   | Vue3 / Vite5 / Pinia / TypeScript          | 快速开发 Vue3 应用                             |
-| **Web UI**     | ElementPlus                                | 企业级 UI 组件库                               |
-| **移动端**     | UniApp / Wot Design Uni                    | 跨端移动应用框架                               |
-| **数据库**     | MySQL / PostgreSQL / Sqlite                | 关系型和文档型数据库支持                       |
-| **缓存**       | Redis                                      | 高性能缓存数据库                               |
-| **文档**       | Swagger / Redoc                            | 自动生成 API 文档                              |
-| **部署**       | Docker / Nginx / Docker Compose            | 容器化部署方案                                 |
-| **智能体框架** | Langchain / Langgraph                      | 基于Langchain和Langgraph的智能体框架           |
+**关于耗时分布**：创意规划最不稳定（99–209s，近一倍方差），其次是口语清理；云端渲染稳定在 80–130s。
 
-## 🚀 快速开始
+**断点续跑**：每个阶段的产物和游标存在独立的断点表里，任务中断后重试会从断点继续，已完成的阶段不重跑。注意 ASR 重跑会重复计费。
+
+## 成本
+
+**单条视频约 ¥0.22**（实测 46.8s / 54.5s 成片，含片尾）
+
+| 项目 | 金额 | 占比 |
+| --- | --- | --- |
+| 阿里云 IMS 云端剪辑（2 次 job） | ¥0.12 | 55% |
+| AI 封面（策划 ¥0.01 + 生图 ¥0.04） | ¥0.05 | 23% |
+| 豆包 LLM（规划 + 关键词 + 封面文案，共 3 次） | ¥0.04 | 18% |
+| 阿里百炼 ASR | ¥0.012–0.015 | ~6% |
+| 本地 ffmpeg / 对象存储 | ¥0 | — |
+
+**单价来源**
+
+| 服务 | 单价 |
+| --- | --- |
+| 阿里云 IMS 1080P 剪辑 | **0.06 元/分钟，不足 1 分钟按 1 分钟计**（需购买【企业订阅服务】） |
+| 阿里百炼 ASR | 0.00022 元/秒（按**源**音频时长计） |
+| 豆包 `doubao-seed-2.0-pro` | 输入 3.2 / 输出 16 元每百万 token |
+| 封面生图（中转站 `gpt-image-2.5`） | 约 0.04 元/张 |
+
+> ⚠️ **60 秒是成本悬崖**
+>
+> IMS 按成片时长计费，不足 1 分钟按 1 分钟算。成片从 59s 变成 61s，片尾那个 job 会从 ¥0.06 直接跳到 ¥0.12，**整条成本 +27%**。做时长控制时，这条比单价更值得盯。
+
+> 💡 封面生图单价从早期的 ¥0.60 降到 ¥0.04 之后，**单条总成本从 ¥0.78 降到 ¥0.22（降幅 72%）** —— 成本大头已经从封面翻转成了云端剪辑本身。
+
+## 运行前准备
+
+### 依赖服务
+
+| 服务 | 版本 | 用途 |
+| --- | --- | --- |
+| MySQL | 8.0+ | 业务数据、任务与断点 |
+| Redis | 7.0+ | 缓存、并发闸门租约 |
+| MinIO 或任意 S3 兼容存储 | — | 素材、成片、封面 |
+| ffmpeg | — | 本地预处理、封面首帧覆盖 |
+
+### 需要申请的密钥
+
+| 环境变量 | 用途 | 说明 |
+| --- | --- | --- |
+| `ALIYUN_ACCESS_KEY_ID` / `ALIYUN_ACCESS_KEY_SECRET` | 云端剪辑 + 对象存储 | **需开通阿里云智能媒体服务（IMS）并购买企业订阅服务**，否则无法提交渲染 |
+| `ALIYUN_DASHSCOPE_API_KEY` | 语音转写（百炼） | 词级时间戳是硬依赖，换句级会静默劣化 |
+| `DOUBAO_API_KEY` | 创意规划、封面文案 | 火山方舟 |
+| `COVER_RELAY_API_KEY` | 封面生图（OpenAI 协议中转站） | **留空则自动回落到火山 Seedream 通道** |
+| `VOLC_AK` / `VOLC_SK` | 火山引擎 | Seedream 生图、人脸融合 |
 
 ### 环境要求
 
-| 类型   | 技术栈           | 版本        |
-| ------ | ---------------- | ----------- |
-| 后端   | Python           | 3.12 ≥ 3.10 |
-| 后端   | FastAPI          | 0.109+      |
-| 前端   | Node.js          | ≥ 20.0      |
-| 前端   | Vue3             | 3.3+        |
-| 数据库 | MySQL/PostgreSQL | 8.0+/17+    |
-| 缓存   | Redis            | 7.0+        |
+- Python **>= 3.10**
+- Node.js **>= 18**（pnpm >= 8）
+- 数据库字符集 `utf8mb4`
 
-### 获取代码
+## 快速开始
 
-> **后端注意**：克隆下的代码需要修改 `backend/env` 目录下的 `.env.dev.example` 文件为 `.env.dev`，修改 `backend/env` 目录下的 `.env.prod.example` 文件为 `.env.prod`，然后根据实际情况修改数据库连接信息、Redis连接信息等。
-
-> **前端注意**：克隆下的代码需要修改 `frontend` 目录下的 `.env.development.example` 文件为 `.env.development`，修改 `frontend` 目录下的 `.env.production.example` 文件为 `.env.production`，然后根据实际情况修改接口地址等。
-
-### 后端启动
-
-#### 使用 uv 管理项目（推荐）
+**1. 建库并导入初始数据**
 
 ```bash
-# 进入后端工程目录
-cd backend
-# 使用 uv 安装依赖
-uv add -r requirements.txt
-# 启动后端服务：启动之前保证mysql中创建好了数据库、redis服务
-uv run main.py run
-# 或指定环境
-uv run main.py run --env=dev or --env=prod
+mysql -u root -p -e "CREATE DATABASE auto_videos DEFAULT CHARACTER SET utf8mb4;"
+mysql -u root -p auto_videos < backend/sql/mysql/fastapiadmin_2026-03-22_214220.sql
+mysql -u root -p auto_videos < backend/sql/mysql/video_processing_menu.sql
 ```
 
-#### 使用传统 pip 方式
+**2. 配置后端环境变量**
 
 ```bash
-# 进入后端工程目录
-cd backend
-# 安装依赖
-pip3 install -r requirements.txt
-# 启动后端服务：启动之前保证mysql中创建好了数据库、redis服务
-python main.py run
-# 或指定环境
-python main.py run --env=dev or --env=prod
+cp backend/env/.env.prod.example backend/env/.env.dev
 ```
 
-### 前端启动
+然后编辑 `backend/env/.env.dev`，至少改这几组：
+
+- `DATABASE_HOST` / `DATABASE_PORT` / `DATABASE_USER` / `DATABASE_PASSWORD` / `DATABASE_NAME`
+- `REDIS_HOST` / `REDIS_PORT`
+- `MINIO_ENDPOINT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET_NAME`
+- 上面表格里那些第三方密钥
+
+**3. 启动后端**
 
 ```bash
-# 进入前端工程目录
+cd backend
+uv sync
+uv run main.py run --env=dev
+```
+
+首次启动会自动建表并执行数据库迁移。API 文档在 `http://localhost:8001/docs`。
+
+**4. 启动前端**
+
+```bash
 cd frontend
-# 安装依赖
 pnpm install
-# 启动开发服务器
 pnpm run dev
-# 构建生产版本
-pnpm run build
 ```
 
-### 🐳 Docker 部署
+**5. 打开视频 Worker**
 
-#### 方式一：脚本放在项目内执行（推荐）
+> ⚠️ **默认不消费任务。** `.env` 里 `VIDEO_WORKER_ENABLED` 默认为 `False`，必须改成 `True` 并重启后端，任务才会被自动领取和执行。
 
-```bash
-# 1. 克隆代码到服务器
-git clone https://gitee.com/fastapiadmin/FastapiAdmin.git
-cd FastapiAdmin
+## 目录结构
 
-# 2. 赋予执行权限并部署
-chmod +x deploy.sh
-./deploy.sh
-
-# 查看容器日志
-./deploy.sh logs
-
-# 停止服务
-./deploy.sh stop
-
-# 重启服务
-./deploy.sh restart
-
-# 更新代码并重启（不重新构建镜像，适合后端代码热更新）
-./deploy.sh update
+```
+auto-videos/
+├── backend/                          # FastAPI 后端
+│   ├── app/
+│   │   ├── api/v1/                   # 系统模块（用户 / 角色 / 菜单 / 监控 …）
+│   │   ├── plugin/                   # 业务插件（自动发现注册）
+│   │   │   ├── module_video/         # ★ 智能剪辑流水线
+│   │   │   ├── module_ai_image/      # AI 图片（裂变 / 风格 / 自动策略）
+│   │   │   ├── module_ai/            # AI 对话
+│   │   │   ├── module_task/          # 通用任务
+│   │   │   ├── module_generator/     # 代码生成器
+│   │   │   ├── module_application/   # 应用管理
+│   │   │   └── module_example/       # 插件示例
+│   │   ├── config/                   # 配置定义
+│   │   ├── core/                     # 数据库 / 路由发现 / 日志 / 异常
+│   │   ├── alembic/                  # 数据库迁移
+│   │   └── scripts/                  # 初始化数据
+│   ├── sql/                          # 初始化 SQL
+│   └── env/                          # 环境变量文件
+├── frontend/                         # Vue3 前端
+│   └── src/
+│       ├── api/                      # 接口封装
+│       ├── views/                    # 页面
+│       ├── components/               # 通用组件
+│       └── router/                   # 路由
+├── devops/                           # Nginx / Docker 部署配置
+├── docs/                             # 文档
+└── deploy.sh                         # 一键部署脚本
 ```
 
-#### 方式二：脚本放在项目外执行
-
-```bash
-# 1. 将部署脚本复制到服务器
-cp deploy.sh /home/
-cd /home
-chmod +x deploy.sh
-
-# 2. 执行一键部署（会自动克隆项目）
-./deploy.sh
-
-# 查看容器日志
-./deploy.sh logs
-
-# 停止服务
-./deploy.sh stop
-
-# 重启服务
-./deploy.sh restart
-
-# 更新代码并重启（不重新构建镜像，适合后端代码热更新）
-./deploy.sh update
-```
-
-> **注意**：
->
-> - 首次部署时会自动拉取代码并构建镜像
-> - 前端使用本地构建的 dist 目录，如需更新前端请先本地构建并提交到仓库
-> - 确保 `devops/nginx/ssl/` 目录包含 SSL 证书文件（如使用 HTTPS）
-
-## 🛠️ 二开教程
-
-### 后端开发
-
-项目采用**插件化架构设计**，二次开发建议在 `backend/app/plugin` 目录下进行，系统会**自动发现并注册**所有符合规范的路由，便于模块管理和升级维护。
-
-#### 插件化架构特性
-
-- **自动路由发现**：系统会自动扫描 `backend/app/plugin/` 目录下所有 `controller.py` 文件
-- **自动路由注册**：所有路由会被自动注册到对应的前缀路径 (module_xxx -> /xxx)
-- **模块化管理**：按功能模块组织代码，便于维护和扩展
-- **支持多层级嵌套**：支持模块内部多层级嵌套结构
-
-#### 插件目录结构
-
-```sh
-backend/app/plugin/
-├── module_application/  # 应用模块（自动映射为 /application）
-│   └── ai/              # AI子模块
-│       ├── controller.py # 控制器文件
-│       ├── model.py      # 数据模型文件
-│       ├── schema.py     # 数据验证文件
-│       ├── service.py    # 业务逻辑文件
-│       └── crud.py       # 数据访问文件
-├── module_example/      # 示例模块（自动映射为 /example）
-│   └── demo/            # 子模块
-│       ├── controller.py # 控制器文件
-│       ├── model.py      # 数据模型文件
-│       ├── schema.py     # 数据验证文件
-│       ├── service.py    # 业务逻辑文件
-│       └── crud.py       # 数据访问文件
-├── module_generator/    # 代码生成模块（自动映射为 /generator）
-└── init_app.py          # 插件初始化文件
-```
-
-#### 自动路由注册机制
-
-系统会**自动发现并注册**所有符合以下条件的路由：
-
-1. 控制器文件必须命名为 `controller.py`
-2. 路由会自动映射：`module_xxx` -> `/xxx`
-3. 支持多个 `APIRouter` 实例
-4. 自动处理路由去重
-
-#### 二次开发步骤
-
-1. **创建插件模块**：在 `backend/app/plugin/` 目录下创建新的模块目录，如 `module_yourfeature`
-2. **编写数据模型**：在 `model.py` 中定义数据库模型
-3. **编写数据验证**：在 `schema.py` 中定义数据验证模型
-4. **编写数据访问层**：在 `crud.py` 中编写数据库操作逻辑
-5. **编写业务逻辑层**：在 `service.py` 中编写业务逻辑
-6. **编写控制器**：在 `controller.py` 中定义路由和处理函数
-7. **自动注册**：系统会自动扫描并注册所有路由，无需手动配置
-
-#### 控制器示例
-
-```python
-# backend/app/plugin/module_yourfeature/yourcontroller/controller.py
-from fastapi import APIRouter, Depends, Path
-from fastapi.responses import JSONResponse
-
-from app.common.response import SuccessResponse
-from app.core.router_class import OperationLogRoute
-from app.core.dependencies import AuthPermission
-from app.api.v1.module_system.auth.schema import AuthSchema
-from .service import YourFeatureService
-
-# 创建路由实例
-YourFeatureRouter = APIRouter(
-    route_class=OperationLogRoute,
-    prefix="/yourcontroller",
-    tags=["你的功能模块"]
-)
-
-@YourFeatureRouter.get("/detail/{id}", summary="获取详情")
-async def get_detail(
-    id: int = Path(..., description="功能ID"),
-    auth: AuthSchema = Depends(AuthPermission(["module_yourfeature:yourcontroller:detail"]))
-) -> JSONResponse:
-    result = await YourFeatureService.detail_service(id=id, auth=auth)
-    return SuccessResponse(data=result)
-
-@YourFeatureRouter.get("/list", summary="获取列表")
-async def get_list(
-    auth: AuthSchema = Depends(AuthPermission(["module_yourfeature:yourcontroller:list"]))
-) -> JSONResponse:
-    result = await YourFeatureService.list_service(auth=auth)
-    return SuccessResponse(data=result)
-```
-
-#### 开发规范
-
-1. **命名规范**：模块名采用 `module_xxx` 格式，控制器名采用驼峰命名法
-2. **权限控制**：所有API接口必须添加权限控制装饰器
-3. **日志记录**：使用 `OperationLogRoute` 类自动记录操作日志
-4. **返回格式**：统一使用 `SuccessResponse` 或 `ErrorResponse` 返回响应
-5. **代码注释**：为所有API接口添加详细的文档字符串
-
-#### 注意事项
-
-- 插件模块名必须以 `module_` 开头
-- 控制器文件必须命名为 `controller.py`
-- 路由会自动映射到对应的前缀路径
-- 无需手动注册路由，系统会自动发现并注册
-
-### 前端部分
-
-1. **配置前端API**：在 `frontend/src/api/` 目录下创建对应的API文件
-2. **编写页面组件**：在 `frontend/src/views/` 目录下创建页面组件
-3. **注册路由**：在 `frontend/src/router/index.ts` 中注册路由
-
-### 代码生成器使用
-
-项目内置代码生成器，可以根据数据库表结构自动生成前后端代码，大幅提升开发效率。
-
-#### 生成步骤
-
-1. **登录系统**：使用管理员账号登录系统
-2. **进入代码生成模块**：在左侧菜单中点击"代码生成"
-3. **导入表结构**：选择要生成代码的数据库表
-4. **配置生成参数**：填写模块名称、功能名称等
-5. **生成代码**：点击"生成代码"按钮
-6. **下载或写入**：选择下载代码包或直接写入项目目录
-
-#### 生成文件结构
-
-```sh
-# 后端文件
-backend/app/plugin/module_yourmodule/
-└── yourfeature/
-    ├── controller.py # 控制器文件
-    ├── model.py      # 数据模型文件
-    ├── schema.py     # 数据验证文件
-    ├── service.py    # 业务逻辑文件
-    └── crud.py       # 数据访问文件
-
-# 前端文件
-frontend/src/
-├── api/module_yourmodule/
-│   └── yourfeature.ts # API调用文件
-└── views/module_yourmodule/
-    └── yourfeature/
-        └── index.vue # 页面组件
-```
-
-#### 生成代码示例
-
-```python
-# 生成的控制器代码示例
-from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
-
-from app.common.response import SuccessResponse
-from app.core.router_class import OperationLogRoute
-from app.core.dependencies import AuthPermission
-from app.api.v1.module_system.auth.schema import AuthSchema
-from .service import YourFeatureService
-from .schema import (
-    YourFeatureCreateSchema,
-    YourFeatureUpdateSchema,
-    YourFeatureQueryParam
-)
-
-YourFeatureRouter = APIRouter(
-    route_class=OperationLogRoute,
-    prefix="/yourfeature",
-    tags=["你的功能模块"]
-)
-
-@YourFeatureRouter.get("/detail/{id}")
-async def get_detail(
-    id: int,
-    auth: AuthSchema = Depends(AuthPermission(["module_yourmodule:yourfeature:detail"]))
-) -> JSONResponse:
-    result = await YourFeatureService.detail_service(id=id, auth=auth)
-    return SuccessResponse(data=result)
-```
-
-### 开发工具
-
-- **代码生成器**：自动生成前后端CRUD代码
-- **API文档**：自动生成Swagger/Redoc API文档
-- **数据库迁移**：支持Alembic数据库迁移
-- **日志系统**：内置日志记录和查询功能
-- **监控系统**：内置服务器监控和缓存监控功能
-
-### 开发流程
-
-1. **需求分析**：明确功能需求和业务逻辑
-2. **数据库设计**：设计数据库表结构
-3. **代码生成**：使用代码生成器生成基础代码
-4. **业务逻辑开发**：完善业务逻辑和接口
-5. **前端开发**：开发前端页面和交互
-6. **测试**：进行单元测试和集成测试
-7. **部署**：部署到生产环境
-
-### 开发注意事项
-
-1. **权限控制**：所有API接口必须添加权限控制
-2. **数据验证**：所有输入数据必须进行验证
-3. **异常处理**：统一处理API异常
-4. **日志记录**：关键操作必须记录日志
-5. **性能优化**：注意API性能优化，避免慢查询
-6. **代码规范**：遵循PEP8和项目代码规范
-
-### 常见问题
-
-#### Q：如何添加新功能模块？
-
-A：按照二次开发步骤，在 `backend/app/plugin/` 目录下创建新的模块目录，编写相关代码即可。
-
-#### Q：如何配置数据库？
-
-A：在 `backend/env/.env.dev` 或 `backend/env/.env.prod` 文件中配置数据库连接信息。
-
-#### Q：如何配置Redis？
-
-A：在 `backend/env/.env.dev` 或 `backend/env/.env.prod` 文件中配置Redis连接信息。
-
-#### Q：如何生成数据库迁移文件？
-
-A：使用 `python main.py revision --env=dev` 命令生成迁移文件。
-
-#### Q：如何应用数据库迁移？
-
-A：使用 `python main.py upgrade --env=dev` 命令应用迁移。
-
-#### Q：如何启动开发服务器？
-
-A：使用 `python main.py run --env=dev` 命令启动开发服务器。
-
-#### Q：如何构建前端生产版本？
-
-A：使用 `pnpm run build` 命令构建前端生产版本。
-
-#### Q：如何部署到生产环境？
-
-A：使用 `./deploy.sh` 脚本一键部署到生产环境。
-
-## ℹ️ 帮助
+## 技术栈
+
+| 层 | 技术选型 |
+| --- | --- |
+| 后端框架 | FastAPI / Uvicorn / Pydantic 2 |
+| ORM | SQLAlchemy 2.0 |
+| 数据库迁移 | Alembic |
+| 定时任务 | APScheduler |
+| 鉴权 | JWT + 基于角色的权限控制 |
+| 前端框架 | Vue 3 / Vite / Pinia / TypeScript |
+| UI 组件 | Element Plus |
+| 存储 | MySQL + Redis + MinIO |
+| 云端剪辑 | 阿里云智能媒体服务（IMS） |
+| 语音转写 | 阿里云百炼（词级时间戳） |
+| 文案与规划 | 豆包（火山方舟） |
+| 封面生图 | OpenAI 协议中转站 / 火山 Seedream |
+| 部署 | Docker / Nginx / Docker Compose |
+
+## 二次开发
+
+项目采用**插件化架构**，业务代码集中在 `backend/app/plugin/` 下。
+
+系统会自动扫描 `app/plugin/module_*/**/controller.py` 中定义的 `APIRouter` 并注册，**目录名即路由前缀** —— 新增一个 `module_xxx/` 目录，其中的 `controller.py` 就会被自动挂到 `/xxx` 下，不需要手写注册代码。
+
+前端页面放在 `frontend/src/views/module_xxx/`，菜单通过后端配置下发。
+
+---
+
+## 说明
+
+- 本项目基于 [FastapiAdmin](https://gitee.com/fastapiadmin/FastapiAdmin) 二次开发，基础框架（权限、菜单、代码生成器等）来自上游。
+- 智能剪辑流水线（`module_video`）为原创实现。
+- License: [MIT](LICENSE)
