@@ -1,0 +1,239 @@
+.panel-header,
+.panel-header > div,
+.material-main,
+.material-label,
+.material-actions,
+.submission-progress__label {
+  display: flex;
+  align-items: center;
+}
+
+.panel-header {
+  min-height: 52px;
+  box-sizing: border-box;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  > div:first-child {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  h3 {
+    margin: 0;
+    color: var(--el-text-color-primary);
+    font-size: 15px;
+    line-height: 22px;
+    letter-spacing: 0;
+  }
+}
+
+.panel-count {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.panel-body {
+  padding: 14px;
+}
+
+.material-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.material-row {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 5px;
+  background: var(--el-fill-color-blank);
+}
+
+.material-main {
+  min-height: 34px;
+  gap: 9px;
+}
+
+.material-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.material-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.material-label {
+  gap: 6px;
+  color: var(--el-text-color-primary);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.material-name {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.material-actions {
+  flex: 0 0 auto;
+  gap: 6px;
+
+  :deep(.el-button + .el-button) {
+    margin-left: 0;
+  }
+}
+
+.asset-progress {
+  margin-top: 7px;
+}
+
+.submission-progress {
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 5px;
+  background: var(--el-fill-color-light);
+}
+
+.submission-progress__label {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+}
+
+.submit-button {
+  width: 100%;
+}
+
+.batch-import-card {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: var(--el-fill-color-lighter);
+}
+
+.batch-ending-card {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: var(--el-fill-color-light);
+}
+
+.batch-import-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  h4 {
+    margin: 0;
+    color: var(--el-text-color-primary);
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  span {
+    display: block;
+    margin-top: 2px;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 18px;
+  }
+}
+
+.batch-ending-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  h4 {
+    margin: 0;
+    color: var(--el-text-color-primary);
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  span {
+    display: block;
+    margin-top: 2px;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 18px;
+  }
+}
+
+.batch-folder-input {
+  display: none;
+}
+
+.batch-ending-input {
+  display: none;
+}
+
+.batch-file-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.batch-file-count,
+.batch-folder-name {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.batch-file-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.batch-import-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.batch-ending-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.batch-ending-name {
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-progress {
+  margin-top: 10px;
+}

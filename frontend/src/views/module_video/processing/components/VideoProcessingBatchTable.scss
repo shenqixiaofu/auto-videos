@@ -1,0 +1,159 @@
+.table-shell {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.batch-table {
+  min-width: 1080px;
+}
+
+.batch-expand {
+  padding: 8px 6px 4px;
+}
+
+.batch-name-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-cover-thumb,
+.task-cover-thumb {
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.batch-cover-thumb {
+  width: 44px;
+  height: 44px;
+}
+
+.batch-name-copy {
+  min-width: 0;
+}
+
+.batch-name,
+.batch-number,
+.task-name,
+.task-number {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-name {
+  color: var(--el-color-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.batch-number,
+.task-number {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.count-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.count-cell strong {
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+}
+
+.task-table {
+  min-width: 920px;
+}
+
+.task-cover-cell {
+  display: grid;
+  min-height: 56px;
+  place-items: center;
+}
+
+.task-cover-thumb {
+  width: 64px;
+  height: 40px;
+}
+
+.task-cover-placeholder {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.task-name-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 180ms ease;
+
+  &:hover {
+    background: var(--el-fill-color-light);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 2px;
+  }
+}
+
+.task-name {
+  color: var(--el-color-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.stage-cell {
+  display: grid;
+  gap: 6px;
+}
+
+/* 细粒度阶段 + 实时耗时，比上面那行粗粒度阶段名小一号。 */
+.stage-cell__progress {
+  color: var(--el-color-primary);
+  font-size: 11px;
+}
+
+.time-cell {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.task-debug-cell {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.task-debug-empty {
+  color: var(--el-text-color-placeholder);
+}
+
+.task-debug-model {
+  color: var(--el-text-color-secondary);
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  :deep(.el-button + .el-button) {
+    margin-left: 0;
+  }
+}

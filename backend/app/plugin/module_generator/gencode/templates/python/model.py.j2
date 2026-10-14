@@ -1,0 +1,31 @@
+# -*- coding: utf-8 -*-
+
+{% for model_import in model_import_list %}
+{{ model_import }}
+{% endfor %}
+{% if table.sub %}
+from sqlalchemy.orm import relationship
+{% endif %}
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.core.base_model import ModelMixin, UserMixin
+
+
+class {{ class_name }}Model(ModelMixin, UserMixin):
+    """
+    {{ function_name }}表
+    """
+    __tablename__: str = '{{ table_name }}'
+    __table_args__: dict[str, str] = {'comment': '{{ function_name }}'}
+    __loader_options__: list[str] = ["created_by", "updated_by"]
+
+    {% for column in columns %}
+    {% if column.column_name not in ['id', 'uuid', 'status', 'description', 'created_time', 'updated_time', 'created_id', 'updated_id'] %}
+    {% set sqlalchemy_type = column|get_sqlalchemy_type %}
+    {{ column.column_name }}: Mapped[{{ column.python_type }} | None] = mapped_column({{ sqlalchemy_type }}, {% if column.pk %}primary_key=True, {% endif %}{% if column.increment %}autoincrement=True, {% endif %}{% if column.required or column.pk %}nullable=False{% else %}nullable=True{% endif %}, comment='{{ column.column_comment }}')
+    {% endif %}
+    {% endfor %}
+
+    {% if table.sub %}
+    {{ sub_class_name }}_list = relationship('{{ sub_class_name }}', back_populates='{{ business_name }}')
+    {% endif %}

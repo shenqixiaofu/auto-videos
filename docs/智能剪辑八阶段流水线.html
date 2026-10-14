@@ -1,0 +1,77 @@
+<svg width="100%" viewBox="0 0 680 560" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>智能剪辑八阶段流水线</title>
+<desc>从素材预处理到成片入库的八个阶段，其中 AI 封面与云端渲染并行。</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<g>
+<rect x="40" y="20" width="255" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="56" y="42" font-family="var(--font-sans)" font-size="14" font-weight="500" fill="#042C53" dominant-baseline="central">1 素材预处理</text>
+<text x="56" y="60" font-family="var(--font-sans)" font-size="12" fill="#185FA5" dominant-baseline="central">转 9:16 + 上传阿里 OSS</text>
+</g>
+<text x="310" y="40" font-family="var(--font-sans)" font-size="12" fill="#5F5E5A" dominant-baseline="central">ffmpeg 本地 · ¥0</text>
+<text x="310" y="58" font-family="var(--font-sans)" font-size="12" fill="#888780" dominant-baseline="central">实测 20–57s</text>
+<path class="arr" d="M167 76L167 106" fill="none" stroke="#B4B2A9" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<g>
+<rect x="40" y="106" width="255" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="56" y="128" font-family="var(--font-sans)" font-size="14" font-weight="500" fill="#042C53" dominant-baseline="central">2 语音转写与口语清理</text>
+<text x="56" y="146" font-family="var(--font-sans)" font-size="12" fill="#185FA5" dominant-baseline="central">删口水词 / 重复 / 长停顿</text>
+</g>
+<text x="310" y="126" font-family="var(--font-sans)" font-size="12" fill="#5F5E5A" dominant-baseline="central">百炼 ASR 词级时间戳</text>
+<text x="310" y="144" font-family="var(--font-sans)" font-size="12" fill="#888780" dominant-baseline="central">¥0.013–0.027 · 69–149s</text>
+<path class="arr" d="M167 162L167 192" fill="none" stroke="#B4B2A9" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<g>
+<rect x="40" y="192" width="255" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="56" y="214" font-family="var(--font-sans)" font-size="14" font-weight="500" fill="#04342C" dominant-baseline="central">3 媒资登记与选曲</text>
+<text x="56" y="232" font-family="var(--font-sans)" font-size="12" fill="#0F6E56" dominant-baseline="central">登记媒资 + seed 选 BGM</text>
+</g>
+<text x="310" y="212" font-family="var(--font-sans)" font-size="12" fill="#5F5E5A" dominant-baseline="central">阿里公共素材库（免费）</text>
+<text x="310" y="230" font-family="var(--font-sans)" font-size="12" fill="#888780" dominant-baseline="central">2–8s</text>
+<path class="arr" d="M167 248L167 278" fill="none" stroke="#B4B2A9" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<g>
+<rect x="40" y="278" width="255" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="56" y="300" font-family="var(--font-sans)" font-size="14" font-weight="500" fill="#4A1B0C" dominant-baseline="central">4 创意规划</text>
+<text x="56" y="318" font-family="var(--font-sans)" font-size="12" fill="#993C1D" dominant-baseline="central">豆包出贴纸 / 动画事件</text>
+</g>
+<text x="310" y="298" font-family="var(--font-sans)" font-size="12" fill="#5F5E5A" dominant-baseline="central">豆包 2 次调用（规划 + 关键词）</text>
+<text x="310" y="316" font-family="var(--font-sans)" font-size="12" fill="#888780" dominant-baseline="central">¥0.03–0.05 · 99–209s</text>
+<path class="arr" d="M167 334L167 364" fill="none" stroke="#B4B2A9" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<g>
+<rect x="40" y="364" width="255" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="56" y="386" font-family="var(--font-sans)" font-size="14" font-weight="500" fill="#26215C" dominant-baseline="central">5 云端渲染</text>
+<text x="56" y="404" font-family="var(--font-sans)" font-size="12" fill="#534AB7" dominant-baseline="central">时间线 → 阿里 IMS 剪辑</text>
+</g>
+<text x="310" y="384" font-family="var(--font-sans)" font-size="12" fill="#5F5E5A" dominant-baseline="central">¥0.06 / 分钟（不足按 1 分）</text>
+<text x="310" y="402" font-family="var(--font-sans)" font-size="12" fill="#888780" dominant-baseline="central">79–126s</text>
+<path class="arr" d="M167 420L167 450" fill="none" stroke="#B4B2A9" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<g>
+<rect x="40" y="450" width="255" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="56" y="472" font-family="var(--font-sans)" font-size="14" font-weight="500" fill="#26215C" dominant-baseline="central">6 片尾拼接（可选）</text>
+<text x="56" y="490" font-family="var(--font-sans)" font-size="12" fill="#534AB7" dominant-baseline="central">第二次 IMS 剪辑 job</text>
+</g>
+<text x="310" y="470" font-family="var(--font-sans)" font-size="12" fill="#5F5E5A" dominant-baseline="central">成片 &gt;60s 进位到 2 分钟</text>
+<text x="310" y="488" font-family="var(--font-sans)" font-size="12" fill="#888780" dominant-baseline="central">¥0.12 · 34–55s</text>
+
+<path class="arr" d="M295 478L360 478L360 300L330 300" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<g>
+<rect x="360" y="364" width="255" height="56" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="376" y="386" font-family="var(--font-sans)" font-size="14" font-weight="500" fill="#412402" dominant-baseline="central">AI 封面（并行跑）</text>
+<text x="376" y="404" font-family="var(--font-sans)" font-size="12" fill="#854F0B" dominant-baseline="central">豆包策划 + 生图（火山引擎/中转站gpt）</text>
+</g>
+<text x="360" y="440" font-family="var(--font-sans)" font-size="12" fill="#5F5E5A" dominant-baseline="central">策划 ¥0.01 + 生图 ¥0.04</text>
+<text x="360" y="458" font-family="var(--font-sans)" font-size="12" fill="#888780" dominant-baseline="central">不占主链 · 131–163s</text>
+
+<path class="arr" d="M167 506L167 530" fill="none" stroke="#B4B2A9" stroke-width="1.5" marker-end="url(#arrow)"/>
+<g>
+<rect x="40" y="522" width="575" height="24" rx="8" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+<text x="56" y="535" font-family="var(--font-sans)" font-size="13" fill="#2C2C2A" dominant-baseline="central">7 成片质检与入库：封面盖首帧 → 回传 MinIO → 建 review 资产（¥0，18–44s）</text>
+</g>
+</svg>

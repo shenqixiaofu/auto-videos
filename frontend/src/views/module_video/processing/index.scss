@@ -1,0 +1,343 @@
+.video-processing-page {
+  min-width: 0;
+}
+
+.page-header,
+.page-title,
+.panel-header,
+.panel-header > div,
+.task-panel-header,
+.detail-heading,
+.asset-heading,
+.preview-footer {
+  display: flex;
+  align-items: center;
+}
+
+.page-header {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.page-title {
+  min-width: 0;
+  gap: 8px;
+
+  h2 {
+    margin: 0;
+    color: var(--el-text-color-primary);
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .el-icon {
+    color: var(--el-color-primary);
+    font-size: 22px;
+  }
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 370px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+/* 左列放「批量导入 + 高级设置」两块，右列是任务列表。
+   左列不再做 sticky：两块的合计高度会超过视口，钉住会把下面那块压在身后。 */
+.workspace-column {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 12px;
+}
+
+.workspace-panel {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: var(--el-bg-color);
+}
+
+.task-panel-header {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-header {
+  min-height: 52px;
+  box-sizing: border-box;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  > div:first-child {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  h3 {
+    margin: 0;
+    color: var(--el-text-color-primary);
+    font-size: 15px;
+    line-height: 22px;
+  }
+}
+
+.panel-count {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.task-filters {
+  min-width: 0;
+}
+
+.status-filter {
+  width: 140px;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px;
+}
+
+.detail-content {
+  min-height: 200px;
+}
+
+.detail-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-heading h3,
+.asset-heading h4,
+.cover-preview__heading h4 {
+  margin: 0;
+}
+
+.detail-heading span {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.detail-descriptions {
+  margin-top: 12px;
+}
+
+.debug-panel {
+  margin-top: 14px;
+}
+
+.debug-panel__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  h4 {
+    margin: 0;
+  }
+
+  span {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+  }
+}
+
+.debug-panel__raw {
+  margin-top: 10px;
+  border-top: none;
+}
+
+.debug-panel__raw-title {
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+}
+
+.debug-panel__json {
+  max-height: 320px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.debug-block {
+  margin-bottom: 16px;
+
+  h5 {
+    margin: 0 0 8px;
+    color: var(--el-text-color-primary);
+    font-size: 13px;
+  }
+}
+
+.debug-label {
+  margin: 10px 0 6px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.debug-reference {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+}
+
+.debug-placeholder {
+  padding: 8px 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.stage-timing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage-timing__item {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr) 68px;
+  align-items: center;
+  gap: 10px;
+}
+
+.stage-timing__label {
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.stage-timing__track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--el-fill-color-light);
+}
+
+.stage-timing__fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--el-color-primary);
+}
+
+.stage-timing__value {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* 进行中的阶段：轨道走一条循环流光，和已完成的实心占比条区分开。 */
+.stage-timing__item--active {
+  .stage-timing__label,
+  .stage-timing__value {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+}
+
+.stage-timing__badge {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.stage-timing__fill--active {
+  width: 40%;
+  background: linear-gradient(90deg, var(--el-color-primary-light-5), var(--el-color-primary));
+  animation: stage-timing-flow 1.4s ease-in-out infinite;
+}
+
+@keyframes stage-timing-flow {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+/* 并行阶段不占主链时间，用虚线轨道和次要色跟串行阶段区分开。 */
+.stage-timing__item--parallel {
+  .stage-timing__label,
+  .stage-timing__value {
+    color: var(--el-text-color-placeholder);
+  }
+
+  .stage-timing__track {
+    background: repeating-linear-gradient(
+      90deg,
+      var(--el-border-color) 0 4px,
+      transparent 4px 8px
+    );
+  }
+
+  .stage-timing__fill {
+    background: var(--el-border-color-darker);
+  }
+}
+
+.cover-preview {
+  margin-top: 14px;
+}
+
+.cover-preview__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cover-preview__image {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.asset-heading {
+  justify-content: space-between;
+  margin: 14px 0 8px;
+}
+.asset-heading span {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.preview-body {
+  display: flex;
+  min-height: 200px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 成片是 9:16 竖屏，按容器宽度铺满会把弹窗撑到近两倍视口高，改由高度反推宽度。 */
+.video-preview {
+  max-width: 100%;
+  max-height: 62vh;
+  border-radius: 8px;
+  background: #000;
+}

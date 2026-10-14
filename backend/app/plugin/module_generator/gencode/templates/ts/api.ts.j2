@@ -1,0 +1,137 @@
+import request from "@/utils/request";
+
+const API_PATH = "/{{ package_name }}/{{ business_name|lower }}";
+
+const {{ class_name }}API = {
+  // 列表查询
+  list{{ class_name }}(query: {{ class_name }}PageQuery) {
+    return request<ApiResponse<PageResult<{{ class_name }}Table[]>>>({
+      url: `${API_PATH}/list`,
+      method: "get",
+      params: query,
+    });
+  },
+
+  // 详情查询
+  detail{{ class_name }}(id: number) {
+    return request<ApiResponse<{{ class_name }}Table>>({
+      url: `${API_PATH}/detail/${id}`,
+      method: "get",
+    });
+  },
+
+  // 新增
+  create{{ class_name }}(body: {{ class_name }}Form) {
+    return request<ApiResponse>({
+      url: `${API_PATH}/create`,
+      method: "post",
+      data: body,
+    });
+  },
+
+  // 修改（带主键）
+  update{{ class_name }}(id: number, body: {{ class_name }}Form) {
+    return request<ApiResponse>({
+      url: `${API_PATH}/update/${id}`,
+      method: "put",
+      data: body,
+    });
+  },
+
+  // 删除（支持批量）
+  delete{{ class_name }}(ids: number[]) {
+    return request<ApiResponse>({
+      url: `${API_PATH}/delete`,
+      method: "delete",
+      data: ids,
+    });
+  },
+
+  // 批量启用/停用
+  batch{{ class_name }}(body: BatchType) {
+    return request<ApiResponse>({
+      url: `${API_PATH}/available/setting`,
+      method: "patch",
+      data: body,
+    });
+  },
+
+  // 导出
+  export{{ class_name }}(query: {{ class_name }}PageQuery) {
+    return request<Blob>({
+      url: `${API_PATH}/export`,
+      method: "post",
+      data: query,
+      responseType: "blob",
+    });
+  },
+
+  // 下载导入模板
+  downloadTemplate{{ class_name }}() {
+    return request<Blob>({
+      url: `${API_PATH}/download/template`,
+      method: "post",
+      responseType: "blob",
+    });
+  },
+
+  // 导入
+  import{{ class_name }}(body: FormData) {
+    return request<ApiResponse>({
+      url: `${API_PATH}/import`,
+      method: "post",
+      data: body,
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+};
+
+export default {{ class_name }}API;
+
+// ------------------------------
+// TS 类型声明
+// ------------------------------
+
+// 列表查询参数
+export interface {{ class_name }}PageQuery extends PageQuery {
+  {% for column in columns %}
+  {% if column.is_query and column.column != "BETWEEN" and column.column_name not in ['created_time', 'updated_time'] %}
+  {{ column.column_name }}?: {{
+    'string' if ('status' in (column.python_field|lower)) or (column.html_type == 'radio')
+    else 'number' if column.is_pk == '1'
+    else 'number' if column.column_name in ['created_id', 'updated_id']
+    else 'string'
+  }};
+  {% endif %}
+  {% endfor %}
+  created_time?: string[];
+  updated_time?: string[];
+}
+
+// 列表展示项
+export interface {{ class_name }}Table extends BaseType {
+  {% for column in columns %}
+  {% if column.column_name not in ['id', 'uuid', 'status', 'description', 'created_time', 'updated_time'] %}
+  {{ column.column_name }}?: {{
+    'boolean' if ('status' in (column.column_name|lower)) or (column.html_type == 'radio')
+    else 'number' if column.is_pk == 1
+    else 'string'
+  }};
+  {% endif %}
+  {% endfor %}
+  created_by?: CommonType;
+  updated_by?: CommonType;
+}
+
+// 新增/修改/详情表单参数
+export interface {{ class_name }}Form extends BaseFormType {
+  {% for column in columns %}
+  {% if (column.is_insert == 1 or column.is_edit == 1) and column.column_name not in ['id', 'uuid', 'status', 'description', 'created_time', 'updated_time', 'created_id', 'updated_id'] %}
+  {{ column.column_name }}?: {{
+    'boolean' if ('status' in (column.column_name|lower)) or (column.html_type == 'radio')
+    else 'number' if column.is_pk == 1
+    else 'string'
+  }};
+  {% endif %}
+  {% endfor %}
+}

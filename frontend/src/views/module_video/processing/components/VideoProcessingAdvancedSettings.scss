@@ -1,0 +1,68 @@
+/* 折叠头要对齐左边「批量导入」面板头的尺寸，展开后才是表单。 */
+.advanced-collapse {
+  border-top: none;
+  border-bottom: none;
+
+  :deep(.el-collapse-item__header) {
+    height: auto;
+    min-height: 52px;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    font-size: 15px;
+  }
+
+  :deep(.el-collapse-item__arrow) {
+    margin-left: 8px;
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    border-bottom: none;
+  }
+
+  :deep(.el-collapse-item__content) {
+    padding-bottom: 0;
+  }
+}
+
+.advanced-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+
+  h3 {
+    margin: 0;
+    color: var(--el-text-color-primary);
+    font-size: 15px;
+    line-height: 22px;
+  }
+}
+
+.advanced-title__hint {
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.advanced-body {
+  padding: 14px;
+}
+
+.advanced-field {
+  width: 100%;
+}
+
+.advanced-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.advanced-meta {
+  margin: 10px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
