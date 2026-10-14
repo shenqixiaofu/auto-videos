@@ -394,6 +394,7 @@ import {
 } from "@element-plus/icons-vue";
 import { formatToDateTime } from "@/utils/dateUtil";
 import VideoProcessingAPI, {
+  VIDEO_STYLE_PRESET_OPTIONS,
   type VideoAssetRole,
   type VideoBatchListParams,
   type VideoProcessingBatch,
@@ -446,9 +447,9 @@ const stageLabels: Record<string, string> = {
   completed: "处理完成",
 };
 
-const styleLabels: Record<VideoStylePreset, string> = {
-  vlog: "日常 Vlog",
-};
+const styleLabels = Object.fromEntries(
+  VIDEO_STYLE_PRESET_OPTIONS.map((item) => [item.value, item.label])
+) as Record<VideoStylePreset, string>;
 
 const assetRoleLabels: Record<VideoAssetRole, string> = {
   source: "源视频",

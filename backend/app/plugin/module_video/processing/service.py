@@ -532,12 +532,11 @@ class VideoProcessingService:
             "adjustment_prompt": data.adjustment_prompt or "",
         })
         config["review_version"] = next_version
-        # 重新生成仍固定使用竖屏日常 Vlog 模式，只更新版本和审核意见。
+        # 重新生成沿用任务原有风格，只更新版本和审核意见。
+        style_preset = str(config.get("style_preset") or DEFAULT_STYLE_PRESET)
         config["aspect_ratio"] = DEFAULT_ASPECT_RATIO
-        config["style_preset"] = DEFAULT_STYLE_PRESET
-        config["review_seed"] = (
-            f"{task.task_no}:v{next_version}:{DEFAULT_STYLE_PRESET}"
-        )
+        config["style_preset"] = style_preset
+        config["review_seed"] = f"{task.task_no}:v{next_version}:{style_preset}"
         config["adjustment_prompt"] = data.adjustment_prompt or ""
         config["review_history"] = review_history
         config["attempt_started_time"] = None

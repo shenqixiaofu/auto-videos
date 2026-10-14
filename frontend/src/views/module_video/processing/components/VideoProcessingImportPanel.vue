@@ -29,6 +29,23 @@
           @change="handleBatchFolderChange"
         />
 
+        <div class="batch-style-card">
+          <div class="batch-style-header">
+            <div>
+              <h4>剪辑风格</h4>
+              <span>整批任务共用同一种风格</span>
+            </div>
+            <el-select v-model="stylePreset" class="batch-style-select" :disabled="batchSubmitting">
+              <el-option
+                v-for="item in VIDEO_STYLE_PRESET_OPTIONS"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </div>
+        </div>
+
         <div v-if="batchSourceFiles.length" class="batch-file-preview">
           <span class="batch-file-count">{{ batchSourceFiles.length }} 个视频</span>
           <span class="batch-folder-name">{{ batchFolderName }}</span>
@@ -103,7 +120,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { uploadVideoMultipart, VideoProcessingAPI } from "@/api/module_video/processing";
+import {
+  uploadVideoMultipart,
+  VideoProcessingAPI,
+  VIDEO_STYLE_PRESET_OPTIONS,
+  type VideoStylePreset,
+} from "@/api/module_video/processing";
 
 const emit = defineEmits<{
   (event: "submitted"): void;
@@ -116,6 +138,7 @@ const endingFile = ref<File | null>(null);
 const batchSubmitting = ref(false);
 const batchCurrentLabel = ref("正在准备批量导入");
 const batchCurrentPercent = ref(0);
+const stylePreset = ref<VideoStylePreset>("vlog");
 
 const batchFolderName = computed(() => {
   const firstFile = batchSourceFiles.value[0];
@@ -265,7 +288,7 @@ async function handleBatchImport() {
           const createResponse = await VideoProcessingAPI.createTask({
             title: taskTitle,
             aspect_ratio: "9:16",
-            style_preset: "vlog",
+            style_preset: stylePreset.value,
             batch_id: batchId,
             batch_index: index + 1,
           });

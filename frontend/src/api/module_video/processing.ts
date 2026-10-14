@@ -17,7 +17,15 @@ export type VideoAssetRole =
 export type VideoAspectRatio = "9:16";
 
 /** 自动剪辑风格预设 */
-export type VideoStylePreset = "vlog";
+export type VideoStylePreset = "vlog" | "travel" | "food" | "clean";
+
+/** 风格预设展示名，新建表单与任务详情共用一份，避免两处各写一套标签。 */
+export const VIDEO_STYLE_PRESET_OPTIONS: Array<{ label: string; value: VideoStylePreset }> = [
+  { label: "日常 Vlog", value: "vlog" },
+  { label: "旅行记录", value: "travel" },
+  { label: "美食探店", value: "food" },
+  { label: "清爽简约", value: "clean" },
+];
 
 /** 自动剪辑任务状态 */
 export type VideoTaskStatus =

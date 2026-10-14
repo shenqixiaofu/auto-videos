@@ -17,7 +17,11 @@ from .planner_models import (
     VideoEditPlan,
     VideoEditSegment,
 )
-from .render_contract import DEFAULT_ASPECT_RATIO, DEFAULT_STYLE_PRESET
+from .render_contract import (
+    DEFAULT_ASPECT_RATIO,
+    DEFAULT_STYLE_PRESET,
+    STYLE_PRESET_LABELS,
+)
 
 __all__ = [
     "VideoCreativeAnimationEvent",
@@ -42,8 +46,10 @@ class VideoEditPlanner:
     ) -> VideoEditPlan:
         """生成当前 MVP 的源视频目标计划，素材扩展不作为用户前置要求。"""
         version = int(config.get("review_version") or 1)
-        # 当前产品收敛为竖屏日常 Vlog，避免多风格分支影响首版交付。
-        style_preset = DEFAULT_STYLE_PRESET
+        # 风格是装饰性字段：库里出现历史值或未知值时回落默认，不让响应 schema 校验炸掉列表。
+        style_preset = str(config.get("style_preset") or "")
+        if style_preset not in STYLE_PRESET_LABELS:
+            style_preset = DEFAULT_STYLE_PRESET
         seed = str(config.get("review_seed") or f"{task_no}:v{version}:{style_preset}")
         adjustment_prompt = str(config.get("adjustment_prompt") or "")
 

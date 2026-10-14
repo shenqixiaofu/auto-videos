@@ -8,11 +8,19 @@ from app.core.exceptions import CustomException
 
 VideoRenderStatus = Literal["queued", "rendering", "completed", "failed"]
 
-# 当前产品收敛为竖屏日常 Vlog，开放更多规格时只改这一处。
+# 成片规格与风格枚举的唯一出口，开放新规格时只改这一处。
 VideoAspectRatio = Literal["9:16"]
-VideoStylePreset = Literal["vlog"]
+VideoStylePreset = Literal["vlog", "travel", "food", "clean"]
 DEFAULT_ASPECT_RATIO: VideoAspectRatio = "9:16"
 DEFAULT_STYLE_PRESET: VideoStylePreset = "vlog"
+
+# 枚举值是给程序看的，提示词里要换成中文，否则模型只能自己猜 travel/food 想表达什么。
+STYLE_PRESET_LABELS: dict[VideoStylePreset, str] = {
+    "vlog": "日常 Vlog",
+    "travel": "旅行记录",
+    "food": "美食探店",
+    "clean": "清爽简约",
+}
 
 
 @dataclass(frozen=True, slots=True)

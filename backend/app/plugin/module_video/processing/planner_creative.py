@@ -34,6 +34,7 @@ from .processing_config import (
     resolve_prompt_template,
 )
 from .provider_concurrency import get_volc_llm_semaphore
+from .render_contract import STYLE_PRESET_LABELS
 
 
 class VideoCreativePlanner:
@@ -317,7 +318,7 @@ class VideoCreativePlanner:
         return (
             f"任务编号：{task_no}\n"
             f"任务标题：{task_title}\n"
-            f"剪辑风格：{style_preset}\n"
+            f"剪辑风格：{STYLE_PRESET_LABELS.get(style_preset, style_preset)}\n"
             f"成片时长：{source_duration_ms}ms\n"
             f"用户调整说明：{adjustment_prompt or '无'}\n"
             f"口播摘要：\n{transcript_excerpt}\n"

@@ -132,7 +132,8 @@
   background: var(--el-fill-color-lighter);
 }
 
-.batch-ending-card {
+.batch-ending-card,
+.batch-style-card {
   margin-top: 12px;
   padding: 12px;
   border: 1px solid var(--el-border-color-lighter);
@@ -162,7 +163,8 @@
   }
 }
 
-.batch-ending-header {
+.batch-ending-header,
+.batch-style-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -236,4 +238,9 @@
 
 .batch-progress {
   margin-top: 10px;
+}
+
+.batch-style-select {
+  width: 150px;
+  flex: 0 0 auto;
 }
