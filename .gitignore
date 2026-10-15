@@ -45,3 +45,6 @@ docker-compose.yaml
 .workbuddy
 .workbuddy-ai
 
+# 截图原图，只留本地；README 引用的是 docs/images/ 下压缩过的 WebP
+.shots/
+
