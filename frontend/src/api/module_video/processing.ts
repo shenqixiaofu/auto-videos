@@ -242,9 +242,36 @@ export interface VideoProcessingConfig {
   creative_planner_model: string;
   cover_prompt_template: string | null;
   planner_prompt_template: string | null;
+  /** 封面策划拆两段：system 管角色与调性，user 管输入与 JSON 契约 */
+  cover_plan_prompt_template: string | null;
+  cover_plan_user_prompt_template: string | null;
+  /** 标题风格样本，一行一条 */
+  cover_style_samples: string | null;
+  cover_title_max_chars: number;
+  cover_subtitle_max_chars: number;
+  cover_badge_max_chars: number;
+  cover_highlight_count: number;
+  /** 底部字幕样式。字号上限受贴纸装饰带几何约束，后端也会夹取。 */
+  subtitle_font: string;
+  subtitle_font_size: number;
+  subtitle_outline_width: number;
+  subtitle_bold: boolean;
   /** 内置默认原文，只读。留空=跟随默认，所以要靠它把编辑框铺满。 */
   cover_prompt_template_default: string;
   planner_prompt_template_default: string;
+  cover_plan_prompt_template_default: string;
+  cover_plan_user_prompt_template_default: string;
+  cover_style_samples_default: string;
+  cover_title_max_chars_default: number;
+  cover_subtitle_max_chars_default: number;
+  cover_badge_max_chars_default: number;
+  cover_highlight_count_default: number;
+  subtitle_font_default: string;
+  subtitle_font_size_default: number;
+  subtitle_outline_width_default: number;
+  subtitle_bold_default: boolean;
+  /** 字体下拉候选由后端下发：阿里对写错的字体名是静默回落，前端不自己维护一份。 */
+  subtitle_font_options: string[];
   version: number;
   updated_time: string | null;
   updated_by: string | null;
@@ -259,6 +286,18 @@ export type VideoProcessingConfigUpdateParams = Partial<
     | "updated_by"
     | "cover_prompt_template_default"
     | "planner_prompt_template_default"
+    | "cover_plan_prompt_template_default"
+    | "cover_plan_user_prompt_template_default"
+    | "cover_style_samples_default"
+    | "cover_title_max_chars_default"
+    | "cover_subtitle_max_chars_default"
+    | "cover_badge_max_chars_default"
+    | "cover_highlight_count_default"
+    | "subtitle_font_default"
+    | "subtitle_font_size_default"
+    | "subtitle_outline_width_default"
+    | "subtitle_bold_default"
+    | "subtitle_font_options"
   >
 >;
 

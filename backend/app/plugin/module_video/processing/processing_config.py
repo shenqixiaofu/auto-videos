@@ -96,7 +96,100 @@ COVER_PROMPT_PLACEHOLDERS: tuple[str, ...] = (
     "safe_area",
 )
 
+# 封面策划 system 提示词的默认模板。`{{safe_area}}` 是构图安全区子句，必须留。
+COVER_PLAN_PROMPT_TEMPLATE = (
+    "你是短视频封面策划。只返回 JSON，不要 Markdown。"
+    "封面要像知识博主、商业认知、干货口播封面。"
+    "主标题要短、有冲突、有利益点，最多 {{title_max_chars}} 个字。"
+    "允许 AI 优化背景、光效和中文字设计，但人物必须保留参考图主体特征。"
+    "{{safe_area}}"
+)
+
+COVER_PLAN_PROMPT_PLACEHOLDERS: tuple[str, ...] = ("safe_area",)
+
+# 封面策划 user 提示词的默认模板。JSON 契约写在里面：字段名是下游 `plan["title"]`
+# 等的唯一来源，改坏会让解析直接抛异常。
+COVER_PLAN_USER_PROMPT_TEMPLATE = (
+    "任务标题：{{task_title}}\n"
+    "口播字幕：{{transcript}}\n"
+    "标题风格样本：\n{{style_samples}}\n"
+    "请生成 JSON："
+    '{"title":"主标题","subtitle":"副标题，最多{{subtitle_max_chars}}个字",'
+    '"badge":"标签，最多{{badge_max_chars}}个字",'
+    '"highlights":["高亮词1","高亮词2"],'
+    '"prompt":"封面排版和氛围说明"}'
+)
+
+COVER_PLAN_USER_PROMPT_PLACEHOLDERS: tuple[str, ...] = (
+    "task_title",
+    "transcript",
+    "style_samples",
+)
+
+# 两个策划模板允许出现的占位符全集。比必需集合宽：字数上限这类值放 system 还是
+# user 里都行，不强制位置。
+COVER_PLAN_ALL_PLACEHOLDERS: tuple[str, ...] = (
+    "safe_area",
+    "task_title",
+    "transcript",
+    "style_samples",
+    "title_max_chars",
+    "subtitle_max_chars",
+    "badge_max_chars",
+    "highlight_count",
+)
+
+# 封面标题风格样本的默认值，一行一条。这是「行业适配」的实际开关 —— 样本写什么
+# 调性模型就往哪边靠，比改 system 提示词直接得多。
+COVER_STYLE_SAMPLES = "\n".join([
+    "看透表层现象，所有生意底层逻辑高度相通",
+    "圈内不会公开讲的经营常识，句句扎心现实",
+    "通用做事逻辑，不管做实体还是做流量都适用",
+    "万事皆有固定规律，读懂少走好几年弯路",
+    "所有结果，背后都藏着一套可复制的逻辑",
+    "普通人接触不到，生意人必备的底层底牌",
+    "一件事想做顺，先要把内在道理彻底想通透",
+    "做生意的核心能力，从来都是懂得合理取舍",
+    "被多数人忽略的常识，恰恰是赚钱关键",
+    "问题反复解决不了，一定要去找最原始根源",
+])
+
 _PLACEHOLDER_PATTERN = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
+
+# 阿里 IMS 内置中文字体（实测均生效）。名字写错**静默回落默认字体、不报错**，
+# 所以前端给下拉而不是输入框，别让管理员手填。
+SUBTITLE_FONT_OPTIONS: tuple[str, ...] = (
+    "HappyZcool-2016",
+    "Alibaba PuHuiTi",
+    "Source Han Sans CN",
+    "Source Han Serif CN",
+    "FZHei-B01S",
+    "FZFangSong-Z02S",
+    "FZKai-Z03S",
+    "FZShuSong-Z01S",
+    "Microsoft YaHei",
+    "Yuanti SC",
+    "SimSun",
+    "KaiTi",
+    "WenQuanYi MicroHei",
+    "WenQuanYi Zen Hei Mono",
+    "WenQuanYi Zen Hei Sharp",
+)
+
+# 字幕字号上限。底部字幕是 BottomCenter + 距底 140px，两行字幕顶边 ≈ 1780 - 2×字号，
+# 而装饰带（图形/氛围贴纸）底边最高到 1658（0.695×1920 + 324）。字号一过 61 就会
+# 压到贴纸带上，封到 60 留 1px 余量。改这个值必须回头核对 layout.py 的槽位。
+_SUBTITLE_FONT_SIZE_MAX = 60
+_SUBTITLE_OUTLINE_MAX = 6
+
+# 字幕样式在配置里的键。中性时间线把这几项原样带进 metadata，阿里侧再解析一次，
+# 所以两边读的是同一份键名，别在中间层改名字。
+SUBTITLE_STYLE_KEYS: tuple[str, ...] = (
+    "subtitle_font",
+    "subtitle_font_size",
+    "subtitle_outline_width",
+    "subtitle_bold",
+)
 
 
 def resolve_prompt_template(stored: str | None, default: str) -> str:
@@ -117,26 +210,120 @@ def render_prompt_template(template: str, values: dict[str, str]) -> str:
 
 
 def check_prompt_template(
-    template: str, required: tuple[str, ...]
+    template: str,
+    required: tuple[str, ...],
+    allowed: tuple[str, ...] | None = None,
 ) -> tuple[list[str], list[str]]:
-    """返回 (缺失的必需占位符, 多余的未知占位符)，两者都为空才算合法。"""
+    """返回 (缺失的必需占位符, 多余的未知占位符)，两者都为空才算合法。
+
+    `allowed` 比 `required` 宽时，多出来的占位符可以出现但不必出现。
+    """
     found = set(_PLACEHOLDER_PATTERN.findall(template))
     missing = [name for name in required if name not in found]
-    unknown = sorted(found - set(required))
+    unknown = sorted(found - set(allowed if allowed is not None else required))
     return missing, unknown
 
 
+def resolve_style_samples(config: dict[str, Any]) -> str:
+    """取生效的封面标题风格样本：库里没存或存了空串就用内置那十条。"""
+    return resolve_prompt_template(config.get("cover_style_samples"), COVER_STYLE_SAMPLES)
+
+
+def subtitle_style_snapshot(config: dict[str, Any]) -> dict[str, Any]:
+    """把字幕样式相关的配置键摘出来，塞进中性时间线的 metadata。
+
+    存的是**配置键**而不是解析后的值：阿里侧再解析一次，默认值只有
+    `resolve_subtitle_style` 一处，中间层不做二次兜底。
+    """
+    return {key: config.get(key) for key in SUBTITLE_STYLE_KEYS}
+
+
+def resolve_subtitle_style(config: dict[str, Any]) -> dict[str, Any]:
+    """字幕样式解析成阿里侧能直接用的值，非法值一律回落内置默认。
+
+    字体名不在清单里就回落 —— 阿里对写错的字体名是静默回落默认字体、不报错，
+    拦不住，只能自己兜。字号和描边宽度做区间夹取。
+    """
+    font = str(config.get("subtitle_font") or "").strip()
+    if font not in SUBTITLE_FONT_OPTIONS:
+        font = str(DEFAULT_PROCESSING_CONFIG["subtitle_font"])
+    font_size = _coerce_int(
+        config.get("subtitle_font_size"), DEFAULT_PROCESSING_CONFIG["subtitle_font_size"]
+    )
+    outline_width = _coerce_int(
+        config.get("subtitle_outline_width"),
+        DEFAULT_PROCESSING_CONFIG["subtitle_outline_width"],
+    )
+    bold_raw = config.get("subtitle_bold")
+    return {
+        "font": font,
+        "font_size": min(max(font_size, 24), _SUBTITLE_FONT_SIZE_MAX),
+        "outline_width": min(max(outline_width, 0), _SUBTITLE_OUTLINE_MAX),
+        "bold": bool(
+            DEFAULT_PROCESSING_CONFIG["subtitle_bold"] if bold_raw is None else bold_raw
+        ),
+    }
+
+
+def _coerce_int(value: Any, fallback: Any) -> int:
+    """转 int，转不动就用兜底值。配置里可能是 null / 字符串 / 越界数字。"""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(fallback)
+
+
+def cover_plan_limits(config: dict[str, Any]) -> dict[str, int]:
+    """封面策划四个数字上限：提示词占位符与落库硬截共用一份，避免两处走偏。
+
+    返回 `<name>_max`（写进提示词）与 `<name>_guard`（落库前截断）。硬截取「配置
+    上限」与兜底下限里的较大者 —— 模型偶尔超字数，按提示词上限直接截会切出半截词；
+    兜底值按改造前写死的 24/24/6/2 定，所以默认 16/18/4/2 下行为逐字不变。
+    """
+    limits: dict[str, int] = {}
+    for name, key, floor in (
+        ("title", "cover_title_max_chars", 24),
+        ("subtitle", "cover_subtitle_max_chars", 24),
+        ("badge", "cover_badge_max_chars", 6),
+        ("highlight", "cover_highlight_count", 2),
+    ):
+        try:
+            value = int(config.get(key))
+        except (TypeError, ValueError):
+            value = int(DEFAULT_PROCESSING_CONFIG[key])
+        value = max(value, 1)
+        limits[f"{name}_max"] = value
+        limits[f"{name}_guard"] = max(value, floor)
+    return limits
+
+
 def with_prompt_defaults(config: dict[str, Any]) -> dict[str, Any]:
-    """附上内置默认提示词，供高级设置当编辑起点。
+    """附上内置默认值与只读清单，供高级设置当编辑起点。
 
     模板留空 = 跟随代码默认，所以库里存的可能是 null —— 光看 null 管理员不知道
     该写什么。把内置原文一起下发，前端铺进编辑框；提交时若与内置原文一致仍回传
     null，这样「没动过」的模板会继续跟着代码默认走，不会被冻结成一份副本。
+    数字上限同理，`*_default` 就是前端判断「是否已自定义」的依据。
     """
     return {
         **config,
         "cover_prompt_template_default": COVER_IMAGE_PROMPT_TEMPLATE,
         "planner_prompt_template_default": PLANNER_SYSTEM_PROMPT_TEMPLATE,
+        "cover_plan_prompt_template_default": COVER_PLAN_PROMPT_TEMPLATE,
+        "cover_plan_user_prompt_template_default": COVER_PLAN_USER_PROMPT_TEMPLATE,
+        "cover_style_samples_default": COVER_STYLE_SAMPLES,
+        # 数字上限同样要下发默认值：前端据此把「没动过」的字段回传成 null，
+        # 否则管理员点一次保存就把默认值冻结成副本，以后改代码默认不再跟随。
+        "cover_title_max_chars_default": DEFAULT_PROCESSING_CONFIG["cover_title_max_chars"],
+        "cover_subtitle_max_chars_default": DEFAULT_PROCESSING_CONFIG["cover_subtitle_max_chars"],
+        "cover_badge_max_chars_default": DEFAULT_PROCESSING_CONFIG["cover_badge_max_chars"],
+        "cover_highlight_count_default": DEFAULT_PROCESSING_CONFIG["cover_highlight_count"],
+        "subtitle_font_default": DEFAULT_PROCESSING_CONFIG["subtitle_font"],
+        "subtitle_font_size_default": DEFAULT_PROCESSING_CONFIG["subtitle_font_size"],
+        "subtitle_outline_width_default": DEFAULT_PROCESSING_CONFIG["subtitle_outline_width"],
+        "subtitle_bold_default": DEFAULT_PROCESSING_CONFIG["subtitle_bold"],
+        # 字体下拉的候选来自后端：名字写错阿里是静默回落，不能让前端自己维护一份。
+        "subtitle_font_options": list(SUBTITLE_FONT_OPTIONS),
     }
 
 
@@ -151,6 +338,21 @@ DEFAULT_PROCESSING_CONFIG: dict[str, Any] = {
     # 提示词留空（None）表示用代码里的内置模板；只有被显式改过才落库。
     "cover_prompt_template": None,
     "planner_prompt_template": None,
+    # 封面策划拆两段：system 管角色与调性，user 管输入与 JSON 契约。
+    "cover_plan_prompt_template": None,
+    "cover_plan_user_prompt_template": None,
+    # 标题风格样本，一行一条。
+    "cover_style_samples": None,
+    # 策划阶段的字数上限。默认值与改造前写死在代码里的提示词文案一致。
+    "cover_title_max_chars": 16,
+    "cover_subtitle_max_chars": 18,
+    "cover_badge_max_chars": 4,
+    "cover_highlight_count": 2,
+    # 底部字幕样式。字号上限受装饰带几何约束，见 _SUBTITLE_FONT_SIZE_MAX。
+    "subtitle_font": "HappyZcool-2016",
+    "subtitle_font_size": 56,
+    "subtitle_outline_width": 2,
+    "subtitle_bold": True,
     "version": 1,
 }
 

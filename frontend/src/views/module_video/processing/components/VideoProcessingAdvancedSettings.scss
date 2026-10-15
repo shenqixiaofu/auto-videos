@@ -55,6 +55,43 @@
   width: 100%;
 }
 
+/* 表单下方的灰字说明：占位符契约、必填项这类「不写就会被改坏」的信息。 */
+.advanced-field__hint {
+  margin: 6px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.advanced-limits {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.advanced-limits__item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+}
+
+.advanced-limits__item :deep(.el-input-number) {
+  width: 120px;
+  flex: 0 0 auto;
+}
+
+.advanced-subtitle {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .advanced-actions {
   display: flex;
   gap: 8px;

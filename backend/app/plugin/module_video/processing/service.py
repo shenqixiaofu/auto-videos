@@ -13,6 +13,9 @@ from app.core.logger import log
 from .crud import VideoAssetCRUD, VideoTaskBatchCRUD, VideoTaskCRUD
 from .model import VideoAssetModel, VideoTaskBatchModel, VideoTaskModel
 from .processing_config import (
+    COVER_PLAN_ALL_PLACEHOLDERS,
+    COVER_PLAN_PROMPT_PLACEHOLDERS,
+    COVER_PLAN_USER_PROMPT_PLACEHOLDERS,
     COVER_PROMPT_PLACEHOLDERS,
     PLANNER_PROMPT_PLACEHOLDERS,
     check_prompt_template,
@@ -724,14 +727,25 @@ class VideoProcessingService:
         不如在保存这一步直接拒掉。空串/null 表示恢复默认，不校验。
         """
         checks = (
-            ("cover_prompt_template", COVER_PROMPT_PLACEHOLDERS),
-            ("planner_prompt_template", PLANNER_PROMPT_PLACEHOLDERS),
+            ("cover_prompt_template", COVER_PROMPT_PLACEHOLDERS, None),
+            ("planner_prompt_template", PLANNER_PROMPT_PLACEHOLDERS, None),
+            # 封面策划两个模板共用一份占位符全集：字数上限放 system 还是 user 都行。
+            (
+                "cover_plan_prompt_template",
+                COVER_PLAN_PROMPT_PLACEHOLDERS,
+                COVER_PLAN_ALL_PLACEHOLDERS,
+            ),
+            (
+                "cover_plan_user_prompt_template",
+                COVER_PLAN_USER_PROMPT_PLACEHOLDERS,
+                COVER_PLAN_ALL_PLACEHOLDERS,
+            ),
         )
-        for field, required in checks:
+        for field, required, allowed in checks:
             template = payload.get(field)
             if not isinstance(template, str) or not template.strip():
                 continue
-            missing, unknown = check_prompt_template(template, required)
+            missing, unknown = check_prompt_template(template, required, allowed)
             if missing:
                 names = "、".join("{{" + name + "}}" for name in missing)
                 raise CustomException(msg=f"{field} 缺少必需占位符: {names}")

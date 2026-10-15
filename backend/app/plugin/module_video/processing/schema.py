@@ -184,9 +184,38 @@ class VideoProcessingConfigOutSchema(BaseModel):
     # 空 = 用代码内置模板。改坏了可以直接清空回到内置版本。
     cover_prompt_template: str | None = Field(default=None, description="封面提示词模板，空=内置默认")
     planner_prompt_template: str | None = Field(default=None, description="创意规划提示词模板，空=内置默认")
+    cover_plan_prompt_template: str | None = Field(
+        default=None, description="封面策划 system 提示词模板，空=内置默认"
+    )
+    cover_plan_user_prompt_template: str | None = Field(
+        default=None, description="封面策划 user 提示词模板，空=内置默认"
+    )
+    cover_style_samples: str | None = Field(
+        default=None, description="封面标题风格样本（一行一条），空=内置默认"
+    )
+    cover_title_max_chars: int = Field(..., description="封面主标题字数上限")
+    cover_subtitle_max_chars: int = Field(..., description="封面副标题字数上限")
+    cover_badge_max_chars: int = Field(..., description="封面标签字数上限")
+    cover_highlight_count: int = Field(..., description="封面高亮词个数上限")
+    subtitle_font: str = Field(..., description="底部字幕字体")
+    subtitle_font_size: int = Field(..., description="底部字幕字号")
+    subtitle_outline_width: int = Field(..., description="底部字幕描边宽度")
+    subtitle_bold: bool = Field(..., description="底部字幕是否加粗")
     # 只读：内置默认原文，前端拿它当编辑起点，并据此判断「是否已自定义」。
     cover_prompt_template_default: str = Field(..., description="封面提示词模板的内置默认原文")
     planner_prompt_template_default: str = Field(..., description="创意规划提示词模板的内置默认原文")
+    cover_plan_prompt_template_default: str = Field(..., description="封面策划 system 模板的内置默认原文")
+    cover_plan_user_prompt_template_default: str = Field(..., description="封面策划 user 模板的内置默认原文")
+    cover_style_samples_default: str = Field(..., description="封面标题风格样本的内置默认原文")
+    cover_title_max_chars_default: int = Field(..., description="封面主标题字数上限的内置默认值")
+    cover_subtitle_max_chars_default: int = Field(..., description="封面副标题字数上限的内置默认值")
+    cover_badge_max_chars_default: int = Field(..., description="封面标签字数上限的内置默认值")
+    cover_highlight_count_default: int = Field(..., description="封面高亮词个数上限的内置默认值")
+    subtitle_font_default: str = Field(..., description="底部字幕字体的内置默认值")
+    subtitle_font_size_default: int = Field(..., description="底部字幕字号的内置默认值")
+    subtitle_outline_width_default: int = Field(..., description="底部字幕描边宽度的内置默认值")
+    subtitle_bold_default: bool = Field(..., description="底部字幕加粗的内置默认值")
+    subtitle_font_options: list[str] = Field(..., description="可选内置字体清单（写错阿里静默回落）")
     version: int = Field(..., description="配置版本号")
     updated_time: DateTimeStr | None = Field(default=None, description="最后更新时间")
     updated_by: str | None = Field(default=None, description="最后更新人")
@@ -206,6 +235,35 @@ class VideoProcessingConfigUpdateSchema(BaseModel):
     )
     cover_prompt_template: str | None = Field(default=None, description="封面提示词模板")
     planner_prompt_template: str | None = Field(default=None, description="创意规划提示词模板")
+    cover_plan_prompt_template: str | None = Field(
+        default=None, description="封面策划 system 提示词模板"
+    )
+    cover_plan_user_prompt_template: str | None = Field(
+        default=None, description="封面策划 user 提示词模板"
+    )
+    cover_style_samples: str | None = Field(default=None, description="封面标题风格样本")
+    # 上限给宽一点但不放开：这些值会直接写进提示词，写太大等于让模型排一屏字。
+    cover_title_max_chars: int | None = Field(
+        default=None, ge=1, le=40, description="封面主标题字数上限"
+    )
+    cover_subtitle_max_chars: int | None = Field(
+        default=None, ge=1, le=40, description="封面副标题字数上限"
+    )
+    cover_badge_max_chars: int | None = Field(
+        default=None, ge=1, le=12, description="封面标签字数上限"
+    )
+    cover_highlight_count: int | None = Field(
+        default=None, ge=1, le=6, description="封面高亮词个数上限"
+    )
+    subtitle_font: str | None = Field(default=None, max_length=64, description="底部字幕字体")
+    # 字号上限 60 是几何硬约束：超过就会压到贴纸装饰带上，见 processing_config。
+    subtitle_font_size: int | None = Field(
+        default=None, ge=24, le=60, description="底部字幕字号"
+    )
+    subtitle_outline_width: int | None = Field(
+        default=None, ge=0, le=6, description="底部字幕描边宽度"
+    )
+    subtitle_bold: bool | None = Field(default=None, description="底部字幕是否加粗")
 
     @model_validator(mode="after")
     def _blank_to_default(self) -> Self:

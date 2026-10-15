@@ -50,6 +50,7 @@ class VideoTimelineBuilder:
         subtitle_utterances: list[dict[str, Any]],
         subtitle_keywords: list[list[str]] | None = None,
         bgm_asset: dict[str, Any] | None = None,
+        subtitle_style: dict[str, Any] | None = None,
     ) -> VideoTimeline:
         """生成源视频加创意覆盖层的完整时间线。"""
         if not source_url:
@@ -57,7 +58,7 @@ class VideoTimelineBuilder:
 
         width, height = cls._output_sizes[edit_plan.aspect_ratio]
         duration_seconds = edit_plan.source_duration_ms / 1000
-        task_theme = pick_sticker_theme(edit_plan.seed)
+        task_theme = pick_sticker_theme(edit_plan.seed, edit_plan.style_preset)
         source_clip = VideoTimelineClip(
             asset={
                 "kind": "video",
@@ -140,6 +141,8 @@ class VideoTimelineBuilder:
             metadata={
                 "builder": "video-timeline-v1",
                 "style_preset": edit_plan.style_preset,
+                # 字幕样式是渲染参数，跟着时间线走：阿里侧只从 metadata 取，不再回查配置。
+                "subtitle_style": dict(subtitle_style or {}),
                 "sticker_theme_id": task_theme.id,
                 "sticker_count": len(creative_plan.sticker_events),
                 "animation_count": len(creative_plan.animation_events),

@@ -4,17 +4,20 @@ from typing import Any
 
 from app.core.exceptions import CustomException
 
+from ..processing_config import resolve_subtitle_style
 from ..render_contract import VideoTimeline, VideoTimelineClip
 from ..sticker_themes import StickerThemeStyle
 from .layout import card_style, card_text, motion_config, placement_config
 
 _subtitle_bottom_y = 140
 _subtitle_text_width = 0.72
-_subtitle_font_size = 56
 
 
 def to_aliyun_timeline(timeline: VideoTimeline) -> dict[str, Any]:
     """把中立时间线转换为阿里 IMS Timeline。"""
+    # 字幕样式由 creative 阶段从全局配置摘进 metadata；老时间线里没有这个键时
+    # resolve_subtitle_style 会回落内置默认值，行为和改造前一致。
+    subtitle_style = resolve_subtitle_style(timeline.metadata.get("subtitle_style") or {})
     video_clips: list[dict[str, Any]] = []
     image_clips: list[dict[str, Any]] = []
     subtitle_track_clips: list[dict[str, Any]] = []
@@ -26,7 +29,7 @@ def to_aliyun_timeline(timeline: VideoTimeline) -> dict[str, Any]:
             if kind == "video":
                 video_clips.append(to_aliyun_video_clip(clip))
             elif kind == "subtitle":
-                subtitle_track_clips.append(to_aliyun_subtitle_clip(clip))
+                subtitle_track_clips.append(to_aliyun_subtitle_clip(clip, subtitle_style))
             elif kind == "text_card":
                 sticker_track_clips.append(to_aliyun_text_clip(clip))
             elif kind in {"graphic_sticker", "effect_sticker"}:
@@ -207,8 +210,15 @@ def to_aliyun_text_clip(clip: VideoTimelineClip) -> dict[str, Any]:
     return payload
 
 
-def to_aliyun_subtitle_clip(clip: VideoTimelineClip) -> dict[str, Any]:
-    """转换阿里底部静态普通字幕片段。"""
+def to_aliyun_subtitle_clip(
+    clip: VideoTimelineClip,
+    subtitle_style: dict[str, Any],
+) -> dict[str, Any]:
+    """转换阿里底部静态普通字幕片段。
+
+    字体 / 字号 / 描边 / 加粗走全局配置（`subtitle_style`，已由
+    `resolve_subtitle_style` 解析过），颜色仍由种子决定的调色板给。
+    """
     text = str(clip.asset.get("text") or "").strip()
     if not text:
         raise CustomException(msg="阿里字幕片段缺少 text")
@@ -234,15 +244,15 @@ def to_aliyun_subtitle_clip(clip: VideoTimelineClip) -> dict[str, Any]:
             highlight_color=str(clip.asset.get("highlight_color") or "#6EE7FF"),
             outline_color=str(clip.asset.get("highlight_outline_colour") or "#0F172A"),
         ),
-        "Font": "HappyZcool-2016",
+        "Font": subtitle_style["font"],
         "AdaptMode": "AutoWrap",
         "TextWidth": _subtitle_text_width,
         "Alignment": "BottomCenter",
-        "FontSize": _subtitle_font_size,
+        "FontSize": subtitle_style["font_size"],
         "FontColor": str(clip.asset.get("subtitle_color") or "#FFD452"),
-        "Outline": 2,
+        "Outline": subtitle_style["outline_width"],
         "OutlineColour": str(clip.asset.get("outline_colour") or "#1B130B"),
-        "FontFace": {"Bold": True},
+        "FontFace": {"Bold": subtitle_style["bold"]},
     }
 
 

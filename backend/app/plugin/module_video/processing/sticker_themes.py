@@ -357,6 +357,27 @@ _THEME_POOL: tuple[StickerTheme, ...] = (
     ),
 )
 
+# 剪辑风格 -> 精选主题 id。抽哪一套仍只看 seed，所以同风格成片有统一调性、
+# 又不会每条都一样。
+#
+# vlog 刻意不入表：它是默认风格，走 _THEME_POOL 全池回落，主题选取与改造前逐字一致。
+# 别把 vlog 也塞进来 —— 内网产品只跑 vlog，一收窄就会静默换掉现有成片的贴纸风格。
+# 主题 id 写错会在 import 时就 KeyError，别改成 `get` 静默跳过。
+_STYLE_THEME_IDS: dict[str, tuple[str, ...]] = {
+    # 旅行记录：天空蓝 / 日落橙 / 夜景青 / 薄荷
+    "travel": ("cobalt_spark", "sunset_flash", "neon_night", "mint_lift"),
+    # 美食探店：暖色为主，加一套高饱和撞色
+    "food": ("citrus_pop", "sunset_flash", "peach_energy", "electric_punch"),
+    # 清爽简约：低饱和冷色
+    "clean": ("mint_lift", "cobalt_spark", "neon_night"),
+}
+
+_THEME_BY_ID: dict[str, StickerTheme] = {theme.id: theme for theme in _THEME_POOL}
+_STYLE_THEME_POOLS: dict[str, tuple[StickerTheme, ...]] = {
+    style: tuple(_THEME_BY_ID[theme_id] for theme_id in theme_ids)
+    for style, theme_ids in _STYLE_THEME_IDS.items()
+}
+
 _MOTION_VARIANTS: dict[str, tuple[StickerMotionVariant, ...]] = {
     "opinion_card": (
         StickerMotionVariant("card_fade_pop", "dissolve_in", "dissolve_out", "soft_pop"),
@@ -379,10 +400,16 @@ _MOTION_VARIANTS: dict[str, tuple[StickerMotionVariant, ...]] = {
 }
 
 
-def pick_sticker_theme(seed: str) -> StickerTheme:
-    """按任务种子稳定抽取一套贴纸主题。"""
+def pick_sticker_theme(seed: str, style_preset: str | None = None) -> StickerTheme:
+    """按任务种子在风格对应的主题池里稳定抽一套贴纸主题。
+
+    风格只决定**候选池**，具体抽哪一套仍然只看 seed —— 所以同一任务重跑结果不变，
+    可重放性没变。风格缺省或不在表里（老任务 config 里可能没有 style_preset）时
+    回落到全池，行为与改造前一致。
+    """
+    pool = _STYLE_THEME_POOLS.get(style_preset or "") or _THEME_POOL
     digest = hashlib.sha1(seed.encode("utf-8")).hexdigest()
-    return _THEME_POOL[int(digest[:8], 16) % len(_THEME_POOL)]
+    return pool[int(digest[:8], 16) % len(pool)]
 
 
 def pick_sticker_motion(

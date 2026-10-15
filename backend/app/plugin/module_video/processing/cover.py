@@ -22,9 +22,13 @@ from app.core.logger import log
 from .mediakit_types import VolcMediaKitSubtitleCue
 from .processing_config import (
     COVER_IMAGE_PROMPT_TEMPLATE,
+    COVER_PLAN_PROMPT_TEMPLATE,
+    COVER_PLAN_USER_PROMPT_TEMPLATE,
+    cover_plan_limits,
     load_processing_config,
     render_prompt_template,
     resolve_prompt_template,
+    resolve_style_samples,
 )
 from .provider_concurrency import get_volc_image_semaphore, get_volc_llm_semaphore
 from .storage import VideoObjectStorage
@@ -32,14 +36,17 @@ from .storage import VideoObjectStorage
 # 封面链路单独放宽超时，避免 LLM 策划、生图和图片下载被过早打断。
 _COVER_IMAGE_TIMEOUT_SECONDS = 300.0
 _COVER_DOWNLOAD_TIMEOUT_SECONDS = 180.0
-# 中转站出图是 1024x1536（2:3）、封面画布是 1200x1600（3:4），本地规整必然要裁掉
-# 上下各约 5.6% 的高度，所以文字必须避开这两条边。顶部用相对锚点而不是百分比：
-# 实测百分比区间模型算不准（落点卡在裁切线上），改成「不小于标签自身高度的两倍」
-# 后角标顶边从 1.6% 抬到 7.6%。
+# 喂给策划模型的字幕上限。整段口播塞进去只是浪费 token，标题该有的信息前 3000 字
+# 里已经够了。写死在代码里是有意的：它是防爆预算，不是排版风格。
+_COVER_TRANSCRIPT_MAX_CHARS = 3000
+# 中转站出图是 1024x1536（2:3）、封面画布是 1200x1600（3:4），本地规整改成补边后
+# 已经不再裁内容，这两条只是「别贴边」的排版要求，不再承担「躲裁切线」的职责。
+# 顶部用相对锚点而不是百分比：实测百分比区间模型算不准（落点卡在裁切线上），改成
+# 「不小于标签自身高度的两倍」后角标顶边从 1.6% 抬到 7.6%，这个落点本身好看，保留。
 _COVER_SAFE_AREA_CLAUSE = (
     "【构图安全区·硬要求】不要贴边："
     "左上角标签的上边缘到画面上边缘的距离，不小于标签自身高度的两倍，留白要一眼看得见；"
-    "画面最下方约八分之一的高度内不要放任何文字、标签或图标，所有文字整体向上收。"
+    "画面最下方约十六分之一的高度内不要放任何文字、标签或图标，所有文字整体向上收。"
 )
 CoverCheckpointWriter = Callable[[str, dict[str, Any]], Awaitable[None]]
 
@@ -460,24 +467,41 @@ class VideoCoverGenerator:
         subtitles: list[VolcMediaKitSubtitleCue],
         config: dict[str, Any],
     ) -> dict[str, Any]:
-        """根据任务标题和字幕内容生成封面标题与排版说明。"""
+        """根据任务标题和字幕内容生成封面标题与排版说明。
+
+        system / user 两段都走全局配置里的模板，字数上限也从配置取 —— 提示词里
+        写的上限和落库前的硬截共用 `cover_plan_limits`，不会各算一套。
+        """
         summary_model = str(
             config.get("cover_summary_model") or settings.VIDEO_COVER_SUMMARY_MODEL
         )
         transcript = " ".join(subtitle.subtitle_text for subtitle in subtitles)
         cover_plan_timeout_seconds = float(settings.VIDEO_COVER_PLAN_TIMEOUT_SECONDS)
-        style_samples = "\n".join([
-            "看透表层现象，所有生意底层逻辑高度相通",
-            "圈内不会公开讲的经营常识，句句扎心现实",
-            "通用做事逻辑，不管做实体还是做流量都适用",
-            "万事皆有固定规律，读懂少走好几年弯路",
-            "所有结果，背后都藏着一套可复制的逻辑",
-            "普通人接触不到，生意人必备的底层底牌",
-            "一件事想做顺，先要把内在道理彻底想通透",
-            "做生意的核心能力，从来都是懂得合理取舍",
-            "被多数人忽略的常识，恰恰是赚钱关键",
-            "问题反复解决不了，一定要去找最原始根源",
-        ])
+        limits = cover_plan_limits(config)
+        # 两个模板共用一份渲染值：字数上限放 system 还是 user 里都不至于渲染不出来。
+        values = {
+            "task_title": task_title,
+            "transcript": transcript[:_COVER_TRANSCRIPT_MAX_CHARS],
+            "style_samples": resolve_style_samples(config),
+            "title_max_chars": str(limits["title_max"]),
+            "subtitle_max_chars": str(limits["subtitle_max"]),
+            "badge_max_chars": str(limits["badge_max"]),
+            "highlight_count": str(limits["highlight_max"]),
+            "safe_area": _COVER_SAFE_AREA_CLAUSE,
+        }
+        system_prompt = render_prompt_template(
+            resolve_prompt_template(
+                config.get("cover_plan_prompt_template"), COVER_PLAN_PROMPT_TEMPLATE
+            ),
+            values,
+        )
+        user_prompt = render_prompt_template(
+            resolve_prompt_template(
+                config.get("cover_plan_user_prompt_template"),
+                COVER_PLAN_USER_PROMPT_TEMPLATE,
+            ),
+            values,
+        )
         log.info(
             "智能视频封面提交策划请求: "
             f"model={summary_model}, "
@@ -492,28 +516,8 @@ class VideoCoverGenerator:
             response = await client.chat.completions.create(
                 model=summary_model,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "你是短视频封面策划。只返回 JSON，不要 Markdown。"
-                            "封面要像知识博主、商业认知、干货口播封面。"
-                            "主标题要短、有冲突、有利益点，最多 16 个字。"
-                            "允许 AI 优化背景、光效和中文字设计，但人物必须保留参考图主体特征。"
-                            f"{_COVER_SAFE_AREA_CLAUSE}"
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            f"任务标题：{task_title}\n"
-                            f"口播字幕：{transcript[:3000]}\n"
-                            f"标题风格样本：\n{style_samples}\n"
-                            "请生成 JSON："
-                            '{"title":"主标题","subtitle":"副标题，最多18个字",'
-                            '"badge":"标签，最多4个字","highlights":["高亮词1","高亮词2"],'
-                            '"prompt":"封面排版和氛围说明"}'
-                        ),
-                    },
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
                 ],
                 response_format={"type": "json_object"},
                 timeout=cover_plan_timeout_seconds,
@@ -532,10 +536,10 @@ class VideoCoverGenerator:
         if not title or not prompt:
             raise CustomException(msg="AI 封面策划缺少标题或提示词")
         return {
-            "title": title[:24],
-            "subtitle": subtitle[:24],
-            "badge": badge[:6],
-            "highlights": highlights[:2],
+            "title": title[: limits["title_guard"]],
+            "subtitle": subtitle[: limits["subtitle_guard"]],
+            "badge": badge[: limits["badge_guard"]],
+            "highlights": highlights[: limits["highlight_guard"]],
             "prompt": prompt,
         }
 
@@ -708,12 +712,14 @@ class VideoCoverGenerator:
     def _normalize_generated_cover_image(cls, image_path: Path) -> None:
         """把生图结果规范到 3:4 封面比例，避免平台侧再次裁切。
 
-        保持居中裁切。试过「固定顶部、只裁底部」，实测更差：模型常把主标题排成
-        三行、内容底边到 84%~94%，把 11% 的损失全压到底部会切到标题最后一行。
-        对称裁掉上下各 5.6% 反而更贴合模型的实际排版。
+        不裁、改补边。出图 2:3（1024x1536）、画布 3:4（1200x1600），`max` 缩放 +
+        居中裁要丢掉上下各 5.6% 的高度，而模型的主标题会压到源图 94%、角标会顶到
+        2.7%，裁哪一边都可能切到字（「只裁底部」的离线 A/B 也是因此被否掉）。
+        改成 contain 缩放让内容完整落进画布，左右各约 5.5% 的缺口用同一张图放大
+        模糊后垫底：远看是渐变，任何情况下都不会切到字。
         """
         source_image = Image.open(image_path).convert("RGB")
-        normalized = cls._fit_image_to_canvas(
+        normalized = cls._fit_image_into_canvas_with_blur_pad(
             source_image,
             cls._cover_width,
             cls._cover_height,
@@ -970,6 +976,9 @@ class VideoCoverGenerator:
         居中裁切是权衡后的选择：出图 2:3、画布 3:4，无论怎么裁都要丢掉约 11% 的
         高度；模型的文字会顶到画面顶部也会压到接近底部，只有对称裁才两边都不额外
         吃亏（「只裁底部」实测会把主标题最后一行切掉，别再改回去）。
+
+        现在只剩首帧的模糊垫底在用（那里裁掉多少都无所谓）。封面正片走
+        `_fit_image_into_canvas_with_blur_pad`，不再裁内容。
         """
         source_width, source_height = image.size
         scale = max(target_width / source_width, target_height / source_height)
@@ -979,6 +988,28 @@ class VideoCoverGenerator:
         left = (resized_width - target_width) // 2
         top = (resized_height - target_height) // 2
         return resized.crop((left, top, left + target_width, top + target_height))
+
+    @classmethod
+    def _fit_image_into_canvas_with_blur_pad(
+        cls,
+        image: Image.Image,
+        target_width: int,
+        target_height: int,
+    ) -> Image.Image:
+        """内容完整放进画布，缺口用同图放大模糊后垫底，不裁掉任何内容。"""
+        # 垫底直接复用居中裁切的结果：它必然是满幅的，再模糊掉就没人看得出裁过。
+        background = cls._fit_image_to_canvas(image, target_width, target_height)
+        background = background.filter(ImageFilter.GaussianBlur(28))
+        foreground = cls._fit_image_to_contain(image, target_width, target_height)
+        canvas = background.copy()
+        canvas.paste(
+            foreground,
+            (
+                (target_width - foreground.size[0]) // 2,
+                (target_height - foreground.size[1]) // 2,
+            ),
+        )
+        return canvas
 
     @staticmethod
     def _fit_image_to_contain(

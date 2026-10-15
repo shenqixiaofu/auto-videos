@@ -74,6 +74,123 @@
                 placeholder="留空则使用内置默认模板"
               />
             </el-form-item>
+
+            <el-form-item label="封面策划提示词模板（system）">
+              <el-input
+                v-model="form.cover_plan_prompt_template"
+                type="textarea"
+                :rows="5"
+                resize="vertical"
+                placeholder="留空则使用内置默认模板"
+              />
+              <p class="advanced-field__hint">
+                管角色与调性。{{ safeAreaTag }} 是构图安全区子句，必须保留。
+              </p>
+            </el-form-item>
+
+            <el-form-item label="封面策划输入模板（user）">
+              <el-input
+                v-model="form.cover_plan_user_prompt_template"
+                type="textarea"
+                :rows="7"
+                resize="vertical"
+                placeholder="留空则使用内置默认模板"
+              />
+              <p class="advanced-field__hint">
+                JSON 契约写在这段里，字段名不要改，否则策划结果解析会直接失败。
+              </p>
+            </el-form-item>
+
+            <el-form-item label="封面标题风格样本">
+              <el-input
+                v-model="form.cover_style_samples"
+                type="textarea"
+                :rows="6"
+                resize="vertical"
+                placeholder="留空则使用内置默认样本"
+              />
+              <p class="advanced-field__hint">
+                一行一条。换成目标行业的调性，模型会照着往那边靠，比改 system 提示词更直接。
+              </p>
+            </el-form-item>
+
+            <el-form-item label="封面文案字数上限">
+              <div class="advanced-limits">
+                <label class="advanced-limits__item">
+                  <span>主标题</span>
+                  <el-input-number
+                    v-model="form.cover_title_max_chars"
+                    :min="1"
+                    :max="40"
+                    controls-position="right"
+                  />
+                </label>
+                <label class="advanced-limits__item">
+                  <span>副标题</span>
+                  <el-input-number
+                    v-model="form.cover_subtitle_max_chars"
+                    :min="1"
+                    :max="40"
+                    controls-position="right"
+                  />
+                </label>
+                <label class="advanced-limits__item">
+                  <span>角标</span>
+                  <el-input-number
+                    v-model="form.cover_badge_max_chars"
+                    :min="1"
+                    :max="12"
+                    controls-position="right"
+                  />
+                </label>
+                <label class="advanced-limits__item">
+                  <span>高亮词个数</span>
+                  <el-input-number
+                    v-model="form.cover_highlight_count"
+                    :min="1"
+                    :max="6"
+                    controls-position="right"
+                  />
+                </label>
+              </div>
+            </el-form-item>
+
+            <el-form-item label="底部字幕样式">
+              <div class="advanced-subtitle">
+                <el-select v-model="form.subtitle_font" class="advanced-field" filterable>
+                  <el-option
+                    v-for="font in config?.subtitle_font_options ?? []"
+                    :key="font"
+                    :label="font"
+                    :value="font"
+                  />
+                </el-select>
+                <div class="advanced-limits">
+                  <label class="advanced-limits__item">
+                    <span>字号</span>
+                    <el-input-number
+                      v-model="form.subtitle_font_size"
+                      :min="24"
+                      :max="60"
+                      controls-position="right"
+                    />
+                  </label>
+                  <label class="advanced-limits__item">
+                    <span>描边宽度</span>
+                    <el-input-number
+                      v-model="form.subtitle_outline_width"
+                      :min="0"
+                      :max="6"
+                      controls-position="right"
+                    />
+                  </label>
+                </div>
+                <el-switch v-model="form.subtitle_bold" active-text="加粗" />
+              </div>
+              <p class="advanced-field__hint">
+                字号上限 60 是几何硬约束：底部字幕压在贴纸装饰带上方，再大就会压到贴纸。
+              </p>
+            </el-form-item>
           </el-form>
 
           <div class="advanced-actions">
@@ -123,6 +240,17 @@ const form = reactive<{
   creative_planner_model: string;
   cover_prompt_template: string;
   planner_prompt_template: string;
+  cover_plan_prompt_template: string;
+  cover_plan_user_prompt_template: string;
+  cover_style_samples: string;
+  cover_title_max_chars: number;
+  cover_subtitle_max_chars: number;
+  cover_badge_max_chars: number;
+  cover_highlight_count: number;
+  subtitle_font: string;
+  subtitle_font_size: number;
+  subtitle_outline_width: number;
+  subtitle_bold: boolean;
 }>({
   cover_image_provider: "relay",
   relay_image_model: "",
@@ -131,7 +259,21 @@ const form = reactive<{
   creative_planner_model: "",
   cover_prompt_template: "",
   planner_prompt_template: "",
+  cover_plan_prompt_template: "",
+  cover_plan_user_prompt_template: "",
+  cover_style_samples: "",
+  cover_title_max_chars: 16,
+  cover_subtitle_max_chars: 18,
+  cover_badge_max_chars: 4,
+  cover_highlight_count: 2,
+  subtitle_font: "HappyZcool-2016",
+  subtitle_font_size: 56,
+  subtitle_outline_width: 2,
+  subtitle_bold: true,
 });
+
+// 提示词里要显示的字面量 {{safe_area}}：直接写进模板会被 Vue 当插值，从脚本给。
+const safeAreaTag = "{{safe_area}}";
 
 // 超级管理员默认持有全部权限，普通角色看后端下发的权限串。
 const canConfig = computed(() => {
@@ -156,6 +298,20 @@ function fillForm(next: VideoProcessingConfig) {
     next.cover_prompt_template ?? next.cover_prompt_template_default ?? "";
   form.planner_prompt_template =
     next.planner_prompt_template ?? next.planner_prompt_template_default ?? "";
+  form.cover_plan_prompt_template =
+    next.cover_plan_prompt_template ?? next.cover_plan_prompt_template_default ?? "";
+  form.cover_plan_user_prompt_template =
+    next.cover_plan_user_prompt_template ?? next.cover_plan_user_prompt_template_default ?? "";
+  form.cover_style_samples =
+    next.cover_style_samples ?? next.cover_style_samples_default ?? "";
+  form.cover_title_max_chars = next.cover_title_max_chars;
+  form.cover_subtitle_max_chars = next.cover_subtitle_max_chars;
+  form.cover_badge_max_chars = next.cover_badge_max_chars;
+  form.cover_highlight_count = next.cover_highlight_count;
+  form.subtitle_font = next.subtitle_font;
+  form.subtitle_font_size = next.subtitle_font_size;
+  form.subtitle_outline_width = next.subtitle_outline_width;
+  form.subtitle_bold = next.subtitle_bold;
 }
 
 /** 与内置原文一致（或清空）就当作「跟随默认」，提交 null，避免把默认值冻结成副本。 */
@@ -163,6 +319,11 @@ function normalizeTemplate(value: string, fallback?: string): string | null {
   const text = value.trim();
   if (!text) return null;
   return text === (fallback ?? "").trim() ? null : text;
+}
+
+/** 数字与布尔同理：与内置默认值相等就回传 null，否则改代码默认时这个字段不会跟着走。 */
+function normalizeDefault<T>(value: T, fallback: T | undefined): T | null {
+  return value === fallback ? null : value;
 }
 
 async function loadConfig() {
@@ -189,12 +350,25 @@ async function loadImageModels() {
 }
 
 function restoreDefaults() {
-  form.cover_prompt_template = config.value?.cover_prompt_template_default ?? "";
-  form.planner_prompt_template = config.value?.planner_prompt_template_default ?? "";
+  const current = config.value;
+  form.cover_prompt_template = current?.cover_prompt_template_default ?? "";
+  form.planner_prompt_template = current?.planner_prompt_template_default ?? "";
+  form.cover_plan_prompt_template = current?.cover_plan_prompt_template_default ?? "";
+  form.cover_plan_user_prompt_template = current?.cover_plan_user_prompt_template_default ?? "";
+  form.cover_style_samples = current?.cover_style_samples_default ?? "";
+  form.cover_title_max_chars = current?.cover_title_max_chars_default ?? 16;
+  form.cover_subtitle_max_chars = current?.cover_subtitle_max_chars_default ?? 18;
+  form.cover_badge_max_chars = current?.cover_badge_max_chars_default ?? 4;
+  form.cover_highlight_count = current?.cover_highlight_count_default ?? 2;
+  form.subtitle_font = current?.subtitle_font_default ?? "HappyZcool-2016";
+  form.subtitle_font_size = current?.subtitle_font_size_default ?? 56;
+  form.subtitle_outline_width = current?.subtitle_outline_width_default ?? 2;
+  form.subtitle_bold = current?.subtitle_bold_default ?? true;
   ElMessage.info("已还原为内置默认提示词，保存后生效");
 }
 
 async function handleSave() {
+  const defaults = config.value;
   const payload: VideoProcessingConfigUpdateParams = {
     cover_image_provider: form.cover_image_provider,
     relay_image_model: form.relay_image_model,
@@ -204,12 +378,50 @@ async function handleSave() {
     // 没改过的模板仍回传 null，让它继续跟着代码默认走。
     cover_prompt_template: normalizeTemplate(
       form.cover_prompt_template,
-      config.value?.cover_prompt_template_default
+      defaults?.cover_prompt_template_default
     ),
     planner_prompt_template: normalizeTemplate(
       form.planner_prompt_template,
-      config.value?.planner_prompt_template_default
+      defaults?.planner_prompt_template_default
     ),
+    cover_plan_prompt_template: normalizeTemplate(
+      form.cover_plan_prompt_template,
+      defaults?.cover_plan_prompt_template_default
+    ),
+    cover_plan_user_prompt_template: normalizeTemplate(
+      form.cover_plan_user_prompt_template,
+      defaults?.cover_plan_user_prompt_template_default
+    ),
+    cover_style_samples: normalizeTemplate(
+      form.cover_style_samples,
+      defaults?.cover_style_samples_default
+    ),
+    cover_title_max_chars: normalizeDefault(
+      form.cover_title_max_chars,
+      defaults?.cover_title_max_chars_default
+    ),
+    cover_subtitle_max_chars: normalizeDefault(
+      form.cover_subtitle_max_chars,
+      defaults?.cover_subtitle_max_chars_default
+    ),
+    cover_badge_max_chars: normalizeDefault(
+      form.cover_badge_max_chars,
+      defaults?.cover_badge_max_chars_default
+    ),
+    cover_highlight_count: normalizeDefault(
+      form.cover_highlight_count,
+      defaults?.cover_highlight_count_default
+    ),
+    subtitle_font: normalizeDefault(form.subtitle_font, defaults?.subtitle_font_default),
+    subtitle_font_size: normalizeDefault(
+      form.subtitle_font_size,
+      defaults?.subtitle_font_size_default
+    ),
+    subtitle_outline_width: normalizeDefault(
+      form.subtitle_outline_width,
+      defaults?.subtitle_outline_width_default
+    ),
+    subtitle_bold: normalizeDefault(form.subtitle_bold, defaults?.subtitle_bold_default),
   };
   saving.value = true;
   try {

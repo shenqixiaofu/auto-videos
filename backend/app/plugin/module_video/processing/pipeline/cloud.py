@@ -45,16 +45,22 @@ async def upload_local_video_to_aliyun_oss(
 async def resolve_video_url(
     reference: dict[str, Any],
 ) -> str:
-    """解析云端视频引用。"""
+    """解析云端视频引用。
+
+    ⚠️ `aliyun_oss` 一律用 object_key 现签，**不要**用引用里存的 url：那是创意阶段
+    那一刻签出来的，过了 ALIYUN_OSS_PRESIGNED_EXPIRE_SECONDS（默认 1 小时）就 403。
+    断点续跑动辄隔几十分钟到几小时，用旧 url 必挂。
+    """
     provider = str(reference.get("provider") or "")
     if provider == "aliyun_oss":
+        object_key = str(reference.get("object_key") or "").strip()
+        if object_key:
+            return build_render_provider().get_output_object_url(object_key)
+        # 老引用可能只存了 url 没存 object_key，只能退回原地址（会过期，但没别的办法）。
         url = str(reference.get("url") or "").strip()
         if url:
             return url
-        object_key = str(reference.get("object_key") or "").strip()
-        if not object_key:
-            raise CustomException(msg="阿里 OSS 视频引用缺少 object_key")
-        return build_render_provider().get_output_object_url(object_key)
+        raise CustomException(msg="阿里 OSS 视频引用缺少 object_key")
     raise CustomException(msg=f"不支持的远程视频引用类型: {provider or 'unknown'}")
 
 
@@ -74,7 +80,9 @@ async def download_video_reference(
         )
         return
 
-    url = str(reference.get("url") or "").strip() or await resolve_video_url(reference)
+    # 走到这里只可能是 aliyun_oss（minio 在上面两个分支就 return 了），一律重签，
+    # 别信引用里那个 url —— 它可能已经过期一小时以上了。
+    url = await resolve_video_url(reference)
     timeout = httpx.Timeout(connect=30.0, read=None, write=30.0, pool=30.0)
     # 必须显式跟随重定向：httpx 默认 follow_redirects=False，而 raise_for_status()
     # 连 3xx 一起判失败，云端输出地址（HTTP 跳 HTTPS）会直接被判成下载失败。

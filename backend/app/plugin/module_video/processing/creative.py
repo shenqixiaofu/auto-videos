@@ -13,6 +13,7 @@ from .planner import (
     VideoCreativePlanner,
     VideoEditPlan,
 )
+from .processing_config import load_processing_config, subtitle_style_snapshot
 from .render_contract import (
     VideoRenderProvider,
     VideoRenderResult,
@@ -120,6 +121,8 @@ class VideoCreativeEditingStage:
             subtitle_utterances=subtitle_utterances,
             subtitle_keywords=creative_plan.subtitle_keywords,
             bgm_asset=bgm_asset,
+            # 字幕样式现读全局配置，与模型名/提示词同口径：改完配置重跑即可生效。
+            subtitle_style=subtitle_style_snapshot(await load_processing_config()),
         )
         subtitle_count, subtitle_max_chars = cls._subtitle_metrics(timeline)
 
